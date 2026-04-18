@@ -1,3 +1,5 @@
+(function() {
+try {
 var {useState,useEffect,useRef} = React;
 
 // ===================== RATE DATA =====================
@@ -454,7 +456,7 @@ var grandTotal = mainAnnual + riderSum;
 return (
 React.createElement(‘div’, { style: {minHeight:“100vh”,background:”#f0f2f5”,
 fontFamily:”‘Sarabun’,‘Noto Sans Thai’,sans-serif”,color:DARK,paddingBottom:60}}
-, React.createElement(‘style’, {}, `@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap'); *{box-sizing:border-box;-webkit-tap-highlight-color:transparent} input{font-family:inherit} .btn{cursor:pointer;border:none;font-family:inherit;transition:all .15s} .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:flex-end} .sheet{background:#fff;width:100%;max-width:520px;margin:0 auto;border-radius:20px 20px 0 0;overflow:hidden;max-height:88vh;display:flex;flex-direction:column} .sheet-body{overflow-y:auto;flex:1} .plan-row{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;gap:12px;transition:background .12s} .plan-row:active{background:#fafafa} .plan-row:last-child{border-bottom:none} .tag{font-size:10px;padding:2px 7px;border-radius:10px;background:#f0f0f0;color:#888} .rider-card{background:#fff;border-radius:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden}`)
+, React.createElement(‘style’, {__self: this, __source: {fileName: _jsxFileName, lineNumber: 457}}, `@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap'); *{box-sizing:border-box;-webkit-tap-highlight-color:transparent} input{font-family:inherit} .btn{cursor:pointer;border:none;font-family:inherit;transition:all .15s} .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:flex-end} .sheet{background:#fff;width:100%;max-width:520px;margin:0 auto;border-radius:20px 20px 0 0;overflow:hidden;max-height:88vh;display:flex;flex-direction:column} .sheet-body{overflow-y:auto;flex:1} .plan-row{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;gap:12px;transition:background .12s} .plan-row:active{background:#fafafa} .plan-row:last-child{border-bottom:none} .tag{font-size:10px;padding:2px 7px;border-radius:10px;background:#f0f0f0;color:#888} .rider-card{background:#fff;border-radius:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden}`)
 
 ```
   /* HEADER */
@@ -462,7 +464,7 @@ fontFamily:”‘Sarabun’,‘Noto Sans Thai’,sans-serif”,color:DARK,paddin
     display:"flex",alignItems:"center",gap:10}}
     , React.createElement('div', { style: {width:34,height:34,background:PINK,borderRadius:8,display:"flex",
       alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:16,flexShrink:0}}, "A")
-    , React.createElement('div', {}
+    , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 477}}
       , React.createElement('div', { style: {fontSize:15,fontWeight:700}}, "uLife AIA" )
       , React.createElement('div', { style: {fontSize:11,color:MUTED}}, "Insurance Premium Calculator"  )
     )
@@ -656,7 +658,7 @@ fontFamily:”‘Sarabun’,‘Noto Sans Thai’,sans-serif”,color:DARK,paddin
                   display:"flex",alignItems:"center",justifyContent:"center"}}
                   , React.createElement('div', { style: {width:10,height:10,borderRadius:"50%",background:plan.color}})
                 )
-                , React.createElement('div', {}
+                , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 671}}
                   , React.createElement('div', { style: {fontSize:12,fontWeight:700,color:plan.color}}, plan.name)
                   , React.createElement('div', { style: {display:"flex",gap:3,flexWrap:"wrap",marginTop:2}}
                     , plan.tags.map(function(t){return React.createElement('span', { key: t, className: "tag"}, t);})
@@ -680,7 +682,7 @@ fontFamily:”‘Sarabun’,‘Noto Sans Thai’,sans-serif”,color:DARK,paddin
 
                 /* HH */
                 , plan.id === "hh" && (
-                  React.createElement('div', {}
+                  React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 695}}
                     , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:5,marginBottom:8}}
                       , plan.subOptions.map(function(opt, i) {
                         var active = rider.subIdx === i;
@@ -718,9 +720,9 @@ fontFamily:”‘Sarabun’,‘Noto Sans Thai’,sans-serif”,color:DARK,paddin
 
                 /* HB */
                 , plan.id === "hb" && (
-                  React.createElement('div', {}
+                  React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 733}}
                     , age >= 16 ? (
-                      React.createElement('div', {}
+                      React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 735}}
                         , React.createElement('div', { style: {fontSize:12,color:MUTED,marginBottom:5}}, "ขั้นอาชีพ")
                         , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:5,marginBottom:10}}
                           , HB_OCC.map(function(opt, i) {
@@ -790,7 +792,7 @@ fontFamily:”‘Sarabun’,‘Noto Sans Thai’,sans-serif”,color:DARK,paddin
 
                 /* CI */
                 , plan.id === "ci" && (
-                  React.createElement('div', {}
+                  React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 805}}
                     , React.createElement('div', { style: {marginBottom:8}}
                       , React.createElement('div', { style: {fontSize:12,color:MUTED,marginBottom:5}}, "ทุนประกัน / วงเงินคุ้มครองโรค (บาท)"   )
                       , React.createElement('div', { style: {position:"relative"}}
@@ -899,7 +901,7 @@ fontFamily:”‘Sarabun’,‘Noto Sans Thai’,sans-serif”,color:DARK,paddin
         )
         , React.createElement('div', { style: {padding:"16px 18px",background:PINK,
           display:"flex",alignItems:"center",justifyContent:"space-between"}}
-          , React.createElement('div', {}
+          , React.createElement('div', {__self: this, __source: {fileName: _jsxFileName, lineNumber: 914}}
             , React.createElement('div', { style: {fontSize:12,color:"rgba(255,255,255,.75)",marginBottom:2}}, "เบี้ยรวมปีแรก")
             , mainPlan && mainPlan.id === "20pay" && mainAnnual > 0 && (
               React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.65)"}}, "ชำระ 20 ปี · คุ้มครองถึงอายุ 99 ปี"      )
@@ -1030,4 +1032,15 @@ fontFamily:”‘Sarabun’,‘Noto Sans Thai’,sans-serif”,color:DARK,paddin
 );
 }
 
-ReactDOM.createRoot(document.getElementById(“root”)).render(React.createElement(App));
+```
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+```
+
+} catch(e) {
+document.getElementById(‘root’).innerHTML =
+‘<div style="padding:20px;color:#c00;font-family:sans-serif;font-size:13px;line-height:1.8">’ +
+‘<strong>Error loading uLife AIA:</strong><br>’ + e.message + ‘<br><br>’ +
+‘<pre style="font-size:11px;overflow:auto">’ + (e.stack||’’) + ‘</pre></div>’;
+console.error(e);
+}
+})();
