@@ -12,474 +12,531 @@
   <meta name="apple-mobile-web-app-title" content="uLife AIA" />
   <link rel="apple-touch-icon" href="/icon.png" />
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #f0f2f5; }
-    #root { min-height: 100vh; }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#f0f2f5;font-family:'Sarabun',sans-serif}
+    #root{min-height:100vh}
+    #loading{display:flex;align-items:center;justify-content:center;height:100vh;
+      flex-direction:column;gap:12px;color:#E8175D}
+    .spin{width:36px;height:36px;border:3px solid #fce4ec;border-top-color:#E8175D;
+      border-radius:50%;animation:spin 0.8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    #err{display:none;padding:20px;color:#c00;font-size:13px;line-height:1.6}
   </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <div id="loading">
+      <div class="spin"></div>
+      <div style="font-size:14px;font-weight:600">uLife AIA</div>
+    </div>
+  </div>
+  <div id="err"></div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-  <script type="text/babel">
+
+  <script>
+    // Pre-check CDN loaded
+    window.addEventListener('load', function() {
+      if(!window.React || !window.ReactDOM || !window.Babel) {
+        document.getElementById('loading').innerHTML = '<div style="color:#c00;padding:20px;font-size:13px">โหลด React library ไม่ได้ กรุณาตรวจสอบ internet</div>';
+        return;
+      }
+      try {
+        var scriptEl = document.getElementById('app-code');
+        var transformed = Babel.transform(scriptEl.textContent, {
+          presets: ['react']
+        }).code;
+        var fn = new Function('React','ReactDOM', transformed + '\nreturn App;');
+        var AppComponent = fn(React, ReactDOM);
+        var root = document.getElementById('root');
+        root.innerHTML = '';
+        ReactDOM.createRoot(root).render(React.createElement(AppComponent));
+      } catch(e) {
+        document.getElementById('loading').style.display = 'none';
+        var errEl = document.getElementById('err');
+        errEl.style.display = 'block';
+        errEl.textContent = 'Error: ' + e.message;
+        console.error(e);
+      }
+    });
+  </script>
+
+  <script id="app-code" type="text/plain">
 const { useState, useEffect, useRef } = React;
+
 
 // ===================== RATE DATA =====================
 const aia20PayRates = {
-1:{m:12.81,f:11.47},2:{m:12.98,f:11.51},3:{m:13.15,f:11.58},4:{m:13.33,f:11.68},
-5:{m:13.53,f:11.80},6:{m:13.73,f:11.94},7:{m:13.95,f:12.10},8:{m:14.18,f:12.27},
-9:{m:14.42,f:12.45},10:{m:14.68,f:12.66},11:{m:14.96,f:12.87},12:{m:15.23,f:13.09},
-13:{m:15.52,f:13.32},14:{m:15.80,f:13.56},15:{m:16.09,f:13.76},16:{m:16.38,f:13.97},
-17:{m:16.67,f:14.19},18:{m:16.97,f:14.41},19:{m:17.27,f:14.65},20:{m:17.58,f:14.90},
-21:{m:17.90,f:15.15},22:{m:18.23,f:15.43},23:{m:18.57,f:15.71},24:{m:18.93,f:16.00},
-25:{m:19.31,f:16.31},26:{m:19.70,f:16.64},27:{m:20.12,f:16.98},28:{m:20.56,f:17.34},
-29:{m:21.02,f:17.72},30:{m:21.50,f:18.11},31:{m:22.01,f:18.53},32:{m:22.55,f:18.96},
-33:{m:23.11,f:19.42},34:{m:23.69,f:19.90},35:{m:24.30,f:20.40},36:{m:24.94,f:20.93},
-37:{m:25.61,f:21.48},38:{m:26.31,f:22.06},39:{m:27.04,f:22.67},40:{m:27.80,f:23.30},
-41:{m:28.60,f:23.96},42:{m:29.44,f:24.66},43:{m:30.32,f:25.39},44:{m:31.24,f:26.15},
-45:{m:32.20,f:26.95},46:{m:33.22,f:27.79},47:{m:34.28,f:28.68},48:{m:35.40,f:29.61},
-49:{m:36.57,f:30.59},50:{m:37.81,f:31.62},51:{m:39.13,f:32.72},52:{m:40.51,f:33.88},
-53:{m:41.99,f:35.11},54:{m:43.56,f:36.41},55:{m:45.25,f:37.81},56:{m:47.05,f:39.29},
-57:{m:48.99,f:40.89},58:{m:51.08,f:42.60},59:{m:53.33,f:44.44},60:{m:55.77,f:46.43},
-61:{m:58.42,f:48.59},62:{m:61.29,f:50.93},63:{m:64.19,f:53.49},64:{m:66.96,f:56.27},
-65:{m:69.89,f:59.32},66:{m:71.99,f:61.90},67:{m:73.80,f:63.61},68:{m:75.13,f:64.71},
-69:{m:76.40,f:66.13},70:{m:78.11,f:67.07},
+  1:{m:12.81,f:11.47},2:{m:12.98,f:11.51},3:{m:13.15,f:11.58},4:{m:13.33,f:11.68},
+  5:{m:13.53,f:11.80},6:{m:13.73,f:11.94},7:{m:13.95,f:12.10},8:{m:14.18,f:12.27},
+  9:{m:14.42,f:12.45},10:{m:14.68,f:12.66},11:{m:14.96,f:12.87},12:{m:15.23,f:13.09},
+  13:{m:15.52,f:13.32},14:{m:15.80,f:13.56},15:{m:16.09,f:13.76},16:{m:16.38,f:13.97},
+  17:{m:16.67,f:14.19},18:{m:16.97,f:14.41},19:{m:17.27,f:14.65},20:{m:17.58,f:14.90},
+  21:{m:17.90,f:15.15},22:{m:18.23,f:15.43},23:{m:18.57,f:15.71},24:{m:18.93,f:16.00},
+  25:{m:19.31,f:16.31},26:{m:19.70,f:16.64},27:{m:20.12,f:16.98},28:{m:20.56,f:17.34},
+  29:{m:21.02,f:17.72},30:{m:21.50,f:18.11},31:{m:22.01,f:18.53},32:{m:22.55,f:18.96},
+  33:{m:23.11,f:19.42},34:{m:23.69,f:19.90},35:{m:24.30,f:20.40},36:{m:24.94,f:20.93},
+  37:{m:25.61,f:21.48},38:{m:26.31,f:22.06},39:{m:27.04,f:22.67},40:{m:27.80,f:23.30},
+  41:{m:28.60,f:23.96},42:{m:29.44,f:24.66},43:{m:30.32,f:25.39},44:{m:31.24,f:26.15},
+  45:{m:32.20,f:26.95},46:{m:33.22,f:27.79},47:{m:34.28,f:28.68},48:{m:35.40,f:29.61},
+  49:{m:36.57,f:30.59},50:{m:37.81,f:31.62},51:{m:39.13,f:32.72},52:{m:40.51,f:33.88},
+  53:{m:41.99,f:35.11},54:{m:43.56,f:36.41},55:{m:45.25,f:37.81},56:{m:47.05,f:39.29},
+  57:{m:48.99,f:40.89},58:{m:51.08,f:42.60},59:{m:53.33,f:44.44},60:{m:55.77,f:46.43},
+  61:{m:58.42,f:48.59},62:{m:61.29,f:50.93},63:{m:64.19,f:53.49},64:{m:66.96,f:56.27},
+  65:{m:69.89,f:59.32},66:{m:71.99,f:61.90},67:{m:73.80,f:63.61},68:{m:75.13,f:64.71},
+  69:{m:76.40,f:66.13},70:{m:78.11,f:67.07},
 };
 
 function get20PayRate(age, gender) {
-var key = Math.min(Math.max(age, 1), 70);
-var row = aia20PayRates[key];
-return row ? row[gender] || 0 : 0;
+  var key = Math.min(Math.max(age, 1), 70);
+  var row = aia20PayRates[key];
+  return row ? row[gender] || 0 : 0;
 }
 
 function getEndowRate(age) {
-if(age<=35) return 82; if(age<=40) return 83; if(age<=45) return 84;
-if(age<=50) return 86; if(age<=55) return 88; if(age<=65) return 90;
-if(age===66) return 91; if(age===67) return 93; if(age===68) return 94;
-if(age===69) return 95; return 96;
+  if(age<=35) return 82; if(age<=40) return 83; if(age<=45) return 84;
+  if(age<=50) return 86; if(age<=55) return 88; if(age<=65) return 90;
+  if(age===66) return 91; if(age===67) return 93; if(age===68) return 94;
+  if(age===69) return 95; return 96;
 }
 
 const hhRates = {
-“11-15”:{m:[16400,20200,25500,33400],f:[14400,18200,21600,27900]},
-“16-20”:{m:[13500,16500,20100,26200],f:[15200,19100,23100,30300]},
-“21-25”:{m:[13700,16900,21600,28000],f:[17200,21500,27000,35300]},
-“26-30”:{m:[14700,18300,26100,33800],f:[17500,21800,30600,38000]},
-“31-35”:{m:[15100,18900,29400,37800],f:[18400,22700,34200,42300]},
-“36-40”:{m:[17000,20800,31800,40900],f:[20400,25100,37200,46000]},
-“41-45”:{m:[19200,23800,36000,47300],f:[22300,27800,42900,53600]},
-“46-50”:{m:[21600,26700,40200,52400],f:[24500,30400,46500,60700]},
-“51-55”:{m:[28300,35000,50100,65300],f:[28500,35200,50700,65500]},
-“56-59”:{m:[34100,42300,63900,83000],f:[34400,42500,65100,84600]},
-“60-65”:{m:[40900,50600,72300,94100],f:[41500,50800,73500,95700]},
-“66-70”:{m:[59400,72100,105000,136700],f:[60800,74000,107100,139300]},
-“71-75”:{m:[85400,104000,152100,197800],f:[88200,107500,155700,202000]},
-“76-80”:{m:[122900,150000,219900,286300],f:[126300,154400,224700,291800]},
-“81-85”:{m:[177800,217100,318300,414700],f:[182700,223400,325500,422700]},
-“86-90”:{m:[204500,249700,366000,476900],f:[210100,256900,374400,486100]},
-“91-95”:{m:[235200,287200,420900,548400],f:[241600,295400,430500,559000]},
-“96-98”:{m:[270500,330300,484200,630700],f:[277800,339700,495000,642900]},
+  "11-15":{m:[16400,20200,25500,33400],f:[14400,18200,21600,27900]},
+  "16-20":{m:[13500,16500,20100,26200],f:[15200,19100,23100,30300]},
+  "21-25":{m:[13700,16900,21600,28000],f:[17200,21500,27000,35300]},
+  "26-30":{m:[14700,18300,26100,33800],f:[17500,21800,30600,38000]},
+  "31-35":{m:[15100,18900,29400,37800],f:[18400,22700,34200,42300]},
+  "36-40":{m:[17000,20800,31800,40900],f:[20400,25100,37200,46000]},
+  "41-45":{m:[19200,23800,36000,47300],f:[22300,27800,42900,53600]},
+  "46-50":{m:[21600,26700,40200,52400],f:[24500,30400,46500,60700]},
+  "51-55":{m:[28300,35000,50100,65300],f:[28500,35200,50700,65500]},
+  "56-59":{m:[34100,42300,63900,83000],f:[34400,42500,65100,84600]},
+  "60-65":{m:[40900,50600,72300,94100],f:[41500,50800,73500,95700]},
+  "66-70":{m:[59400,72100,105000,136700],f:[60800,74000,107100,139300]},
+  "71-75":{m:[85400,104000,152100,197800],f:[88200,107500,155700,202000]},
+  "76-80":{m:[122900,150000,219900,286300],f:[126300,154400,224700,291800]},
+  "81-85":{m:[177800,217100,318300,414700],f:[182700,223400,325500,422700]},
+  "86-90":{m:[204500,249700,366000,476900],f:[210100,256900,374400,486100]},
+  "91-95":{m:[235200,287200,420900,548400],f:[241600,295400,430500,559000]},
+  "96-98":{m:[270500,330300,484200,630700],f:[277800,339700,495000,642900]},
 };
 
 function getHHGroup(age) {
-if(age<=15) return “11-15”; if(age<=20) return “16-20”; if(age<=25) return “21-25”;
-if(age<=30) return “26-30”; if(age<=35) return “31-35”; if(age<=40) return “36-40”;
-if(age<=45) return “41-45”; if(age<=50) return “46-50”; if(age<=55) return “51-55”;
-if(age<=59) return “56-59”; if(age<=65) return “60-65”; if(age<=70) return “66-70”;
-if(age<=75) return “71-75”; if(age<=80) return “76-80”; if(age<=85) return “81-85”;
-if(age<=90) return “86-90”; if(age<=95) return “91-95”; return “96-98”;
+  if(age<=15) return "11-15"; if(age<=20) return "16-20"; if(age<=25) return "21-25";
+  if(age<=30) return "26-30"; if(age<=35) return "31-35"; if(age<=40) return "36-40";
+  if(age<=45) return "41-45"; if(age<=50) return "46-50"; if(age<=55) return "51-55";
+  if(age<=59) return "56-59"; if(age<=65) return "60-65"; if(age<=70) return "66-70";
+  if(age<=75) return "71-75"; if(age<=80) return "76-80"; if(age<=85) return "81-85";
+  if(age<=90) return "86-90"; if(age<=95) return "91-95"; return "96-98";
 }
 
 function getHHAnnual(age, gender, subIdx) {
-var grp = getHHGroup(age);
-var row = hhRates[grp];
-if(!row) return 0;
-var arr = row[gender];
-if(!arr) return 0;
-return arr[subIdx] || 0;
+  var grp = getHHGroup(age);
+  var row = hhRates[grp];
+  if(!row) return 0;
+  var arr = row[gender];
+  if(!arr) return 0;
+  return arr[subIdx] || 0;
 }
 
 function getHBRate(age, occIdx) {
-if(age < 6 || age > 59) return 0;
-if(age <= 15) return 90;
-var rates = [150, 187, 225];
-return rates[occIdx] || 150;
+  if(age < 6 || age > 59) return 0;
+  if(age <= 15) return 90;
+  var rates = [150, 187, 225];
+  return rates[occIdx] || 150;
 }
 
 const HB_OCC = [
-{label:“ขั้น 1,2”, sub:“150 บาท/100”},
-{label:“ขั้น 3”,   sub:“187 บาท/100”},
-{label:“ขั้น 4”,   sub:“225 บาท/100”},
+  {label:"ขั้น 1,2", sub:"150 บาท/100"},
+  {label:"ขั้น 3",   sub:"187 บาท/100"},
+  {label:"ขั้น 4",   sub:"225 บาท/100"},
 ];
 
 // ===================== AIA CI SUPERCARE RATES =====================
 // อัตราต่อเงินเอาประกัน 1,000 บาท รายปี
-// [รวม, ชีวิต, โรคร้ายแรง] — ใช้คอลัมน์ “รวม” เพื่อคำนวณเบี้ยทั้งหมด
+// [รวม, ชีวิต, โรคร้ายแรง] — ใช้คอลัมน์ "รวม" เพื่อคำนวณเบี้ยทั้งหมด
 
 var ciSC10Rates = {
-// age: { m: รวมชาย, f: รวมหญิง }
-// อายุ 1 เดือน = key “0”
-0:{m:39.39,f:36.28}, 1:{m:39.84,f:36.65}, 2:{m:40.31,f:37.04}, 3:{m:40.82,f:37.46},
-4:{m:41.36,f:37.91}, 5:{m:41.92,f:38.38}, 6:{m:42.52,f:38.88}, 7:{m:43.15,f:39.40},
-8:{m:43.82,f:39.94}, 9:{m:44.50,f:40.51}, 10:{m:45.15,f:41.09}, 11:{m:45.94,f:41.91},
-12:{m:46.69,f:42.74}, 13:{m:47.45,f:43.60}, 14:{m:48.23,f:44.46}, 15:{m:49.02,f:45.36},
-16:{m:49.83,f:46.28}, 17:{m:50.65,f:47.05}, 18:{m:51.53,f:47.85}, 19:{m:52.41,f:48.68},
-20:{m:53.33,f:49.54}, 21:{m:54.31,f:50.43}, 22:{m:55.31,f:51.34}, 23:{m:56.34,f:52.27},
-24:{m:57.42,f:53.22}, 25:{m:58.53,f:54.22}, 26:{m:59.63,f:55.26}, 27:{m:60.78,f:56.33},
-28:{m:61.96,f:57.43}, 29:{m:63.19,f:58.58}, 30:{m:64.46,f:59.75}, 31:{m:65.78,f:60.97},
-32:{m:67.15,f:62.21}, 33:{m:68.58,f:63.47}, 34:{m:70.07,f:64.76}, 35:{m:71.63,f:66.07},
-36:{m:73.04,f:67.39}, 37:{m:74.51,f:68.77}, 38:{m:76.07,f:70.19}, 39:{m:77.72,f:71.68},
-40:{m:79.45,f:73.22}, 41:{m:81.19,f:74.97}, 42:{m:82.92,f:76.76}, 43:{m:84.63,f:78.55},
-44:{m:86.35,f:80.38}, 45:{m:88.10,f:82.25}, 46:{m:90.56,f:84.18}, 47:{m:93.18,f:86.17},
-48:{m:95.98,f:88.28}, 49:{m:98.94,f:90.47}, 50:{m:102.06,f:92.76}, 51:{m:105.41,f:95.15},
-52:{m:108.86,f:97.61}, 53:{m:112.49,f:100.15}, 54:{m:116.24,f:102.74}, 55:{m:120.03,f:105.39},
-56:{m:123.83,f:108.06}, 57:{m:127.65,f:110.74}, 58:{m:131.54,f:113.45}, 59:{m:135.56,f:116.21},
-60:{m:139.73,f:119.04}, 61:{m:144.10,f:121.98}, 62:{m:148.69,f:125.07}, 63:{m:153.47,f:128.31},
-64:{m:158.49,f:131.71}, 65:{m:163.79,f:135.32},
+  // age: { m: รวมชาย, f: รวมหญิง }
+  // อายุ 1 เดือน = key "0"
+  0:{m:39.39,f:36.28}, 1:{m:39.84,f:36.65}, 2:{m:40.31,f:37.04}, 3:{m:40.82,f:37.46},
+  4:{m:41.36,f:37.91}, 5:{m:41.92,f:38.38}, 6:{m:42.52,f:38.88}, 7:{m:43.15,f:39.40},
+  8:{m:43.82,f:39.94}, 9:{m:44.50,f:40.51}, 10:{m:45.15,f:41.09}, 11:{m:45.94,f:41.91},
+  12:{m:46.69,f:42.74}, 13:{m:47.45,f:43.60}, 14:{m:48.23,f:44.46}, 15:{m:49.02,f:45.36},
+  16:{m:49.83,f:46.28}, 17:{m:50.65,f:47.05}, 18:{m:51.53,f:47.85}, 19:{m:52.41,f:48.68},
+  20:{m:53.33,f:49.54}, 21:{m:54.31,f:50.43}, 22:{m:55.31,f:51.34}, 23:{m:56.34,f:52.27},
+  24:{m:57.42,f:53.22}, 25:{m:58.53,f:54.22}, 26:{m:59.63,f:55.26}, 27:{m:60.78,f:56.33},
+  28:{m:61.96,f:57.43}, 29:{m:63.19,f:58.58}, 30:{m:64.46,f:59.75}, 31:{m:65.78,f:60.97},
+  32:{m:67.15,f:62.21}, 33:{m:68.58,f:63.47}, 34:{m:70.07,f:64.76}, 35:{m:71.63,f:66.07},
+  36:{m:73.04,f:67.39}, 37:{m:74.51,f:68.77}, 38:{m:76.07,f:70.19}, 39:{m:77.72,f:71.68},
+  40:{m:79.45,f:73.22}, 41:{m:81.19,f:74.97}, 42:{m:82.92,f:76.76}, 43:{m:84.63,f:78.55},
+  44:{m:86.35,f:80.38}, 45:{m:88.10,f:82.25}, 46:{m:90.56,f:84.18}, 47:{m:93.18,f:86.17},
+  48:{m:95.98,f:88.28}, 49:{m:98.94,f:90.47}, 50:{m:102.06,f:92.76}, 51:{m:105.41,f:95.15},
+  52:{m:108.86,f:97.61}, 53:{m:112.49,f:100.15}, 54:{m:116.24,f:102.74}, 55:{m:120.03,f:105.39},
+  56:{m:123.83,f:108.06}, 57:{m:127.65,f:110.74}, 58:{m:131.54,f:113.45}, 59:{m:135.56,f:116.21},
+  60:{m:139.73,f:119.04}, 61:{m:144.10,f:121.98}, 62:{m:148.69,f:125.07}, 63:{m:153.47,f:128.31},
+  64:{m:158.49,f:131.71}, 65:{m:163.79,f:135.32},
 };
 
 var ciSC20Rates = {
-0:{m:22.20,f:20.42}, 1:{m:22.46,f:20.63}, 2:{m:22.73,f:20.85}, 3:{m:23.02,f:21.09},
-4:{m:23.33,f:21.35}, 5:{m:23.65,f:21.61}, 6:{m:23.99,f:21.89}, 7:{m:24.35,f:22.19},
-8:{m:24.73,f:22.49}, 9:{m:25.12,f:22.81}, 10:{m:25.53,f:23.14}, 11:{m:25.94,f:23.59},
-12:{m:26.37,f:24.06}, 13:{m:26.80,f:24.54}, 14:{m:27.24,f:25.04}, 15:{m:27.70,f:25.54},
-16:{m:28.15,f:26.06}, 17:{m:28.62,f:26.48}, 18:{m:29.12,f:26.94}, 19:{m:29.63,f:27.42},
-20:{m:30.16,f:27.92}, 21:{m:30.72,f:28.43}, 22:{m:31.31,f:28.96}, 23:{m:31.91,f:29.50},
-24:{m:32.54,f:30.06}, 25:{m:33.19,f:30.64}, 26:{m:33.86,f:31.25}, 27:{m:34.55,f:31.88},
-28:{m:35.28,f:32.53}, 29:{m:36.05,f:33.21}, 30:{m:36.85,f:33.91}, 31:{m:37.70,f:34.64},
-32:{m:38.59,f:35.39}, 33:{m:39.53,f:36.16}, 34:{m:40.52,f:36.96}, 35:{m:41.57,f:37.78},
-36:{m:42.28,f:38.62}, 37:{m:43.04,f:39.50}, 38:{m:43.86,f:40.43}, 39:{m:44.74,f:41.41},
-40:{m:45.68,f:42.45}, 41:{m:46.65,f:43.63}, 42:{m:47.63,f:44.85}, 43:{m:48.62,f:46.11},
-44:{m:49.65,f:47.41}, 45:{m:50.72,f:48.76}, 46:{m:52.82,f:50.18}, 47:{m:55.08,f:51.68},
-48:{m:57.52,f:53.27}, 49:{m:60.13,f:54.94}, 50:{m:62.92,f:56.71}, 51:{m:65.93,f:58.57},
-52:{m:69.10,f:60.52}, 53:{m:72.48,f:62.56}, 54:{m:76.04,f:64.69}, 55:{m:79.72,f:66.91},
-56:{m:83.55,f:69.21}, 57:{m:87.51,f:71.59}, 58:{m:91.65,f:74.08}, 59:{m:96.02,f:76.70},
-60:{m:100.65,f:79.47}, 61:{m:105.58,f:82.44}, 62:{m:110.82,f:85.61}, 63:{m:116.36,f:89.01},
-64:{m:122.25,f:92.65}, 65:{m:128.52,f:96.58},
+  0:{m:22.20,f:20.42}, 1:{m:22.46,f:20.63}, 2:{m:22.73,f:20.85}, 3:{m:23.02,f:21.09},
+  4:{m:23.33,f:21.35}, 5:{m:23.65,f:21.61}, 6:{m:23.99,f:21.89}, 7:{m:24.35,f:22.19},
+  8:{m:24.73,f:22.49}, 9:{m:25.12,f:22.81}, 10:{m:25.53,f:23.14}, 11:{m:25.94,f:23.59},
+  12:{m:26.37,f:24.06}, 13:{m:26.80,f:24.54}, 14:{m:27.24,f:25.04}, 15:{m:27.70,f:25.54},
+  16:{m:28.15,f:26.06}, 17:{m:28.62,f:26.48}, 18:{m:29.12,f:26.94}, 19:{m:29.63,f:27.42},
+  20:{m:30.16,f:27.92}, 21:{m:30.72,f:28.43}, 22:{m:31.31,f:28.96}, 23:{m:31.91,f:29.50},
+  24:{m:32.54,f:30.06}, 25:{m:33.19,f:30.64}, 26:{m:33.86,f:31.25}, 27:{m:34.55,f:31.88},
+  28:{m:35.28,f:32.53}, 29:{m:36.05,f:33.21}, 30:{m:36.85,f:33.91}, 31:{m:37.70,f:34.64},
+  32:{m:38.59,f:35.39}, 33:{m:39.53,f:36.16}, 34:{m:40.52,f:36.96}, 35:{m:41.57,f:37.78},
+  36:{m:42.28,f:38.62}, 37:{m:43.04,f:39.50}, 38:{m:43.86,f:40.43}, 39:{m:44.74,f:41.41},
+  40:{m:45.68,f:42.45}, 41:{m:46.65,f:43.63}, 42:{m:47.63,f:44.85}, 43:{m:48.62,f:46.11},
+  44:{m:49.65,f:47.41}, 45:{m:50.72,f:48.76}, 46:{m:52.82,f:50.18}, 47:{m:55.08,f:51.68},
+  48:{m:57.52,f:53.27}, 49:{m:60.13,f:54.94}, 50:{m:62.92,f:56.71}, 51:{m:65.93,f:58.57},
+  52:{m:69.10,f:60.52}, 53:{m:72.48,f:62.56}, 54:{m:76.04,f:64.69}, 55:{m:79.72,f:66.91},
+  56:{m:83.55,f:69.21}, 57:{m:87.51,f:71.59}, 58:{m:91.65,f:74.08}, 59:{m:96.02,f:76.70},
+  60:{m:100.65,f:79.47}, 61:{m:105.58,f:82.44}, 62:{m:110.82,f:85.61}, 63:{m:116.36,f:89.01},
+  64:{m:122.25,f:92.65}, 65:{m:128.52,f:96.58},
 };
 
 function getCISCRate(rateTable, age, gender) {
-var key = Math.min(Math.max(age, 0), 65);
-var row = rateTable[key];
-return row ? (row[gender] || 0) : 0;
+  var key = Math.min(Math.max(age, 0), 65);
+  var row = rateTable[key];
+  return row ? (row[gender] || 0) : 0;
 }
 
 function getCISCDisc10(cov) {
-if(cov >= 5000000) return 3.50;
-if(cov >= 1000000) return 2.50;
-return 0;
+  if(cov >= 5000000) return 3.50;
+  if(cov >= 1000000) return 2.50;
+  return 0;
 }
 
 function getCISCDisc20(cov) {
-if(cov >= 5000000) return 2.00;
-if(cov >= 1000000) return 1.50;
-if(cov >= 800000)  return 1.00;
-if(cov >= 500000)  return 0.50;
-return 0;
+  if(cov >= 5000000) return 2.00;
+  if(cov >= 1000000) return 1.50;
+  if(cov >= 800000)  return 1.00;
+  if(cov >= 500000)  return 0.50;
+  return 0;
 }
 
 // ===================== PLAN DEFINITIONS =====================
 const MAIN_PLANS = [
-{
-id:“20pay”, name:“AIA 20PAY LIFE (NON PAR)”,
-tags:[“ตลอดชีพ”,“ชำระเบี้ย 20 ปี”], color:”#E8175D”,
-minAge:1, maxAge:70, minCov:100000,
-calcAnnual: function(age, gender, cov) {
-var r    = get20PayRate(age, gender);
-var disc = cov >= 600000 ? 2 : cov >= 250000 ? 1 : 0;
-return ((r - disc) * cov) / 1000;
-},
-discNote: function(cov) {
-return cov >= 600000 ? “ส่วนลด 2 บาท/พัน” : cov >= 250000 ? “ส่วนลด 1 บาท/พัน” : “”;
-},
-},
-{
-id:“endow”, name:“AIA ENDOWMENT 15/25 (NON PAR)”,
-tags:[“สะสมทรัพย์”,“ไม่มีเงินปันผล”], color:”#7B52AB”,
-minAge:1, maxAge:70, minCov:100000,
-calcAnnual: function(age, _g, cov) {
-var r    = getEndowRate(Math.min(age, 70));
-var disc = cov >= 600000 ? 1.5 : cov >= 300000 ? 1 : 0;
-return ((r - disc) * cov) / 1000;
-},
-discNote: function(cov) {
-return cov >= 600000 ? “ส่วนลด 1.5 บาท/พัน” : cov >= 300000 ? “ส่วนลด 1 บาท/พัน” : “”;
-},
-rateNote: function(age) {
-return “อัตราเบี้ย “ + getEndowRate(Math.min(age,70)) + “ บาท/พัน · ชาย/หญิง เท่ากัน”;
-},
-},
-{
-id:“cisc10”, name:“AIA CI SuperCare 10/99”,
-tags:[“โรคร้ายแรง”,“ชำระเบี้ย 10 ปี”,“ตลอดชีพ”], color:”#1A6BB5”,
-minAge:1, maxAge:65, minCov:200000,
-calcAnnual: function(age, gender, cov) {
-var r    = getCISCRate(ciSC10Rates, age, gender);
-var disc = getCISCDisc10(cov);
-return ((r - disc) * cov) / 1000;
-},
-discNote: function(cov) {
-if(cov >= 5000000) return “ส่วนลด 3.50 บาท/พัน (5M+)”;
-if(cov >= 1000000) return “ส่วนลด 2.50 บาท/พัน (1M+)”;
-return “”;
-},
-rateNote: function(age, gender) {
-var r = getCISCRate(ciSC10Rates, age, gender);
-return “อัตราเบี้ยรวม “ + r + “ บาท/พัน · ทุนขั้นต่ำ 200,000 บาท”;
-},
-},
-{
-id:“cisc20”, name:“AIA CI SuperCare 20/99”,
-tags:[“โรคร้ายแรง”,“ชำระเบี้ย 20 ปี”,“ตลอดชีพ”], color:”#0E8A6E”,
-minAge:1, maxAge:65, minCov:200000,
-calcAnnual: function(age, gender, cov) {
-var r    = getCISCRate(ciSC20Rates, age, gender);
-var disc = getCISCDisc20(cov);
-return ((r - disc) * cov) / 1000;
-},
-discNote: function(cov) {
-if(cov >= 5000000) return “ส่วนลด 2.00 บาท/พัน (5M+)”;
-if(cov >= 1000000) return “ส่วนลด 1.50 บาท/พัน (1M+)”;
-if(cov >= 800000)  return “ส่วนลด 1.00 บาท/พัน (800K+)”;
-if(cov >= 500000)  return “ส่วนลด 0.50 บาท/พัน (500K+)”;
-return “”;
-},
-rateNote: function(age, gender) {
-var r = getCISCRate(ciSC20Rates, age, gender);
-return “อัตราเบี้ยรวม “ + r + “ บาท/พัน · ทุนขั้นต่ำ 200,000 บาท”;
-},
-},
+  {
+    id:"20pay", name:"AIA 20PAY LIFE (NON PAR)",
+    tags:["ตลอดชีพ","ชำระเบี้ย 20 ปี"], color:"#E8175D",
+    minAge:1, maxAge:70, minCov:100000,
+    calcAnnual: function(age, gender, cov) {
+      var r    = get20PayRate(age, gender);
+      var disc = cov >= 600000 ? 2 : cov >= 250000 ? 1 : 0;
+      return ((r - disc) * cov) / 1000;
+    },
+    discNote: function(cov) {
+      return cov >= 600000 ? "ส่วนลด 2 บาท/พัน" : cov >= 250000 ? "ส่วนลด 1 บาท/พัน" : "";
+    },
+  },
+  {
+    id:"endow", name:"AIA ENDOWMENT 15/25 (NON PAR)",
+    tags:["สะสมทรัพย์","ไม่มีเงินปันผล"], color:"#7B52AB",
+    minAge:1, maxAge:70, minCov:100000,
+    calcAnnual: function(age, _g, cov) {
+      var r    = getEndowRate(Math.min(age, 70));
+      var disc = cov >= 600000 ? 1.5 : cov >= 300000 ? 1 : 0;
+      return ((r - disc) * cov) / 1000;
+    },
+    discNote: function(cov) {
+      return cov >= 600000 ? "ส่วนลด 1.5 บาท/พัน" : cov >= 300000 ? "ส่วนลด 1 บาท/พัน" : "";
+    },
+    rateNote: function(age) {
+      return "อัตราเบี้ย " + getEndowRate(Math.min(age,70)) + " บาท/พัน · ชาย/หญิง เท่ากัน";
+    },
+  },
+  {
+    id:"cisc10", name:"AIA CI SuperCare 10/99",
+    tags:["โรคร้ายแรง","ชำระเบี้ย 10 ปี","ตลอดชีพ"], color:"#1A6BB5",
+    minAge:1, maxAge:65, minCov:200000,
+    calcAnnual: function(age, gender, cov) {
+      var r    = getCISCRate(ciSC10Rates, age, gender);
+      var disc = getCISCDisc10(cov);
+      return ((r - disc) * cov) / 1000;
+    },
+    discNote: function(cov) {
+      if(cov >= 5000000) return "ส่วนลด 3.50 บาท/พัน (5M+)";
+      if(cov >= 1000000) return "ส่วนลด 2.50 บาท/พัน (1M+)";
+      return "";
+    },
+    rateNote: function(age, gender) {
+      var r = getCISCRate(ciSC10Rates, age, gender);
+      return "อัตราเบี้ยรวม " + r + " บาท/พัน · ทุนขั้นต่ำ 200,000 บาท";
+    },
+  },
+  {
+    id:"cisc20", name:"AIA CI SuperCare 20/99",
+    tags:["โรคร้ายแรง","ชำระเบี้ย 20 ปี","ตลอดชีพ"], color:"#0E8A6E",
+    minAge:1, maxAge:65, minCov:200000,
+    calcAnnual: function(age, gender, cov) {
+      var r    = getCISCRate(ciSC20Rates, age, gender);
+      var disc = getCISCDisc20(cov);
+      return ((r - disc) * cov) / 1000;
+    },
+    discNote: function(cov) {
+      if(cov >= 5000000) return "ส่วนลด 2.00 บาท/พัน (5M+)";
+      if(cov >= 1000000) return "ส่วนลด 1.50 บาท/พัน (1M+)";
+      if(cov >= 800000)  return "ส่วนลด 1.00 บาท/พัน (800K+)";
+      if(cov >= 500000)  return "ส่วนลด 0.50 บาท/พัน (500K+)";
+      return "";
+    },
+    rateNote: function(age, gender) {
+      var r = getCISCRate(ciSC20Rates, age, gender);
+      return "อัตราเบี้ยรวม " + r + " บาท/พัน · ทุนขั้นต่ำ 200,000 บาท";
+    },
+  },
 ];
 
 // ===================== AIA MULTI-PAY CI PLUS =====================
 // อัตราต่อเงินเอาประกัน 1,000 บาท รายปี (รวม Multi-Pay CI + Total Care)
 var ciRates = {
-“15d-5”: {m:6.31, f:5.13},
-“6-10”:  {m:4.61, f:3.83},
-“11-15”: {m:4.55, f:3.76},
-“16-20”: {m:4.52, f:3.49},
-“21-25”: {m:5.05, f:4.18},
-“26-30”: {m:5.56, f:4.73},
-“31-35”: {m:6.61, f:6.23},
-“36-40”: {m:8.75, f:7.35},
-“41-45”: {m:16.87,f:10.04},
-“46-50”: {m:27.70,f:16.31},
-“51-55”: {m:49.73,f:29.16},
-“56-60”: {m:83.62,f:45.37},
-“61-65”: {m:130.07,f:69.55},
-“66-70”: {m:163.89,f:102.32},
-“71-75”: {m:235.83,f:157.17},
-“76-79”: {m:326.64,f:232.32},
-“80”:    {m:295.76,f:211.65},
-“81-85”: {m:381.57,f:322.75},
-“86-90”: {m:621.28,f:571.36},
-“91-95”: {m:909.63,f:855.28},
-“96-98”: {m:1043.29,f:1065.97},
+  "15d-5": {m:6.31, f:5.13},
+  "6-10":  {m:4.61, f:3.83},
+  "11-15": {m:4.55, f:3.76},
+  "16-20": {m:4.52, f:3.49},
+  "21-25": {m:5.05, f:4.18},
+  "26-30": {m:5.56, f:4.73},
+  "31-35": {m:6.61, f:6.23},
+  "36-40": {m:8.75, f:7.35},
+  "41-45": {m:16.87,f:10.04},
+  "46-50": {m:27.70,f:16.31},
+  "51-55": {m:49.73,f:29.16},
+  "56-60": {m:83.62,f:45.37},
+  "61-65": {m:130.07,f:69.55},
+  "66-70": {m:163.89,f:102.32},
+  "71-75": {m:235.83,f:157.17},
+  "76-79": {m:326.64,f:232.32},
+  "80":    {m:295.76,f:211.65},
+  "81-85": {m:381.57,f:322.75},
+  "86-90": {m:621.28,f:571.36},
+  "91-95": {m:909.63,f:855.28},
+  "96-98": {m:1043.29,f:1065.97},
 };
 
 function getCIGroup(age) {
-if(age <= 5)  return “15d-5”;
-if(age <= 10) return “6-10”;
-if(age <= 15) return “11-15”;
-if(age <= 20) return “16-20”;
-if(age <= 25) return “21-25”;
-if(age <= 30) return “26-30”;
-if(age <= 35) return “31-35”;
-if(age <= 40) return “36-40”;
-if(age <= 45) return “41-45”;
-if(age <= 50) return “46-50”;
-if(age <= 55) return “51-55”;
-if(age <= 60) return “56-60”;
-if(age <= 65) return “61-65”;
-if(age <= 70) return “66-70”;
-if(age <= 75) return “71-75”;
-if(age <= 79) return “76-79”;
-if(age === 80) return “80”;
-if(age <= 85) return “81-85”;
-if(age <= 90) return “86-90”;
-if(age <= 95) return “91-95”;
-return “96-98”;
+  if(age <= 5)  return "15d-5";
+  if(age <= 10) return "6-10";
+  if(age <= 15) return "11-15";
+  if(age <= 20) return "16-20";
+  if(age <= 25) return "21-25";
+  if(age <= 30) return "26-30";
+  if(age <= 35) return "31-35";
+  if(age <= 40) return "36-40";
+  if(age <= 45) return "41-45";
+  if(age <= 50) return "46-50";
+  if(age <= 55) return "51-55";
+  if(age <= 60) return "56-60";
+  if(age <= 65) return "61-65";
+  if(age <= 70) return "66-70";
+  if(age <= 75) return "71-75";
+  if(age <= 79) return "76-79";
+  if(age === 80) return "80";
+  if(age <= 85) return "81-85";
+  if(age <= 90) return "86-90";
+  if(age <= 95) return "91-95";
+  return "96-98";
 }
 
 function getCIAnnual(age, gender, cov) {
-var grp = getCIGroup(age);
-var row = ciRates[grp];
-if(!row) return 0;
-var rate = row[gender] || 0;
-return (rate * cov) / 1000;
+  var grp = getCIGroup(age);
+  var row = ciRates[grp];
+  if(!row) return 0;
+  var rate = row[gender] || 0;
+  return (rate * cov) / 1000;
 }
 
 const RIDER_PLANS = [
-{
-id:“hh”, name:“AIA HEALTH HAPPY”,
-tags:[“รักษาพยาบาลในร.พ.”,“แบบมาตรฐานใหม่”], color:”#E85D9D”,
-minAge:11, maxAge:98,
-subOptions:[
-{label:“1M”,  sub:“1,000,000 บาท”},
-{label:“5M”,  sub:“5,000,000 บาท”},
-{label:“15M”, sub:“15,000,000 บาท”},
-{label:“25M”, sub:“25,000,000 บาท”},
-],
-calcAnnual: function(age, gender, _cov, subIdx) {
-return getHHAnnual(age, gender, subIdx);
-},
-},
-{
-id:“hb”, name:“AIA HB”,
-tags:[“ค่าชดเชยรายวัน”,“เข้าพักร.พ.”], color:”#8B1A4A”,
-minAge:6, maxAge:59,
-hasCovInput:true, minCov:100, covDefault:1000,
-subOptions: HB_OCC,
-calcAnnual: function(age, _g, cov, occIdx) {
-return (getHBRate(age, occIdx) * cov) / 100;
-},
-rateNote: function(age, occIdx) {
-if(age <= 15) return “อัตราเบี้ย 90 บาท / เงินเอาประกัน 100 บาท (อายุ 6–15 ปี)”;
-var r = [150, 187, 225][occIdx] || 150;
-return “อัตราเบี้ย “ + r + “ บาท / เงินเอาประกัน 100 บาท”;
-},
-},
-{
-id:“ci”, name:“AIA MULTI-PAY CI PLUS”,
-tags:[“โรคร้ายแรง”,“Multi-Pay”], color:”#D4500A”,
-minAge:1, maxAge:98,
-hasCovInput:true, minCov:100000, covDefault:1000000,
-calcAnnual: function(age, gender, cov) {
-return getCIAnnual(age, gender, cov);
-},
-rateNote: function(age, gender) {
-var grp = getCIGroup(age);
-var row = ciRates[grp];
-if(!row) return “”;
-var rate = row[gender] || 0;
-return “อัตราเบี้ย “ + rate + “ บาท/พัน · กลุ่มอายุ “ + grp + “ ปี (รวม Multi-Pay CI + Total Care)”;
-},
-},
+  {
+    id:"hh", name:"AIA HEALTH HAPPY",
+    tags:["รักษาพยาบาลในร.พ.","แบบมาตรฐานใหม่"], color:"#E85D9D",
+    minAge:11, maxAge:98,
+    subOptions:[
+      {label:"1M",  sub:"1,000,000 บาท"},
+      {label:"5M",  sub:"5,000,000 บาท"},
+      {label:"15M", sub:"15,000,000 บาท"},
+      {label:"25M", sub:"25,000,000 บาท"},
+    ],
+    calcAnnual: function(age, gender, _cov, subIdx) {
+      return getHHAnnual(age, gender, subIdx);
+    },
+  },
+  {
+    id:"hb", name:"AIA HB",
+    tags:["ค่าชดเชยรายวัน","เข้าพักร.พ."], color:"#8B1A4A",
+    minAge:6, maxAge:59,
+    hasCovInput:true, minCov:100, covDefault:1000,
+    subOptions: HB_OCC,
+    calcAnnual: function(age, _g, cov, occIdx) {
+      return (getHBRate(age, occIdx) * cov) / 100;
+    },
+    rateNote: function(age, occIdx) {
+      if(age <= 15) return "อัตราเบี้ย 90 บาท / เงินเอาประกัน 100 บาท (อายุ 6–15 ปี)";
+      var r = [150, 187, 225][occIdx] || 150;
+      return "อัตราเบี้ย " + r + " บาท / เงินเอาประกัน 100 บาท";
+    },
+  },
+  {
+    id:"ci", name:"AIA MULTI-PAY CI PLUS",
+    tags:["โรคร้ายแรง","Multi-Pay"], color:"#D4500A",
+    minAge:1, maxAge:98,
+    hasCovInput:true, minCov:100000, covDefault:1000000,
+    calcAnnual: function(age, gender, cov) {
+      return getCIAnnual(age, gender, cov);
+    },
+    rateNote: function(age, gender) {
+      var grp = getCIGroup(age);
+      var row = ciRates[grp];
+      if(!row) return "";
+      var rate = row[gender] || 0;
+      return "อัตราเบี้ย " + rate + " บาท/พัน · กลุ่มอายุ " + grp + " ปี (รวม Multi-Pay CI + Total Care)";
+    },
+  },
 ];
 
 // ===================== HELPERS =====================
-function fmt(n) { return Math.round(n).toLocaleString(“th-TH”); }
-var PINK = “#E8175D”;
-var GRAY = “#f5f5f5”;
-var DARK = “#1a1a2e”;
-var MUTED= “#999”;
+function fmt(n) { return Math.round(n).toLocaleString("th-TH"); }
+var PINK = "#E8175D";
+var GRAY = "#f5f5f5";
+var DARK = "#1a1a2e";
+var MUTED= "#999";
 
 function findPlan(arr, id) {
-for(var i=0;i<arr.length;i++) { if(arr[i].id===id) return arr[i]; }
-return null;
+  for(var i=0;i<arr.length;i++) { if(arr[i].id===id) return arr[i]; }
+  return null;
 }
 
 function useCovInput(initial) {
-var def = initial || 1000000;
-var [str, setStr] = useState(def.toLocaleString(“th-TH”));
-var [val, setVal] = useState(def);
-var ref = useRef(null);
-useEffect(function() {
-var n = parseInt(str.replace(/,/g,””), 10);
-setVal(!isNaN(n) && n > 0 ? n : 0);
-}, [str]);
-function onChange(e) { setStr(e.target.value.replace(/[^0-9]/g,””)); }
-function onBlur() {
-var n = parseInt(str.replace(/,/g,””), 10);
-if(!isNaN(n)) setStr(n.toLocaleString(“th-TH”));
-}
-function onFocus() {
-setStr(String(val));
-setTimeout(function() { if(ref.current) ref.current.select(); }, 30);
-}
-function setQuick(v) { setStr(v.toLocaleString(“th-TH”)); }
-return {str:str, val:val, ref:ref, onChange:onChange, onBlur:onBlur, onFocus:onFocus, setQuick:setQuick};
+  var def = initial || 1000000;
+  var [str, setStr] = useState(def.toLocaleString("th-TH"));
+  var [val, setVal] = useState(def);
+  var ref = useRef(null);
+  useEffect(function() {
+    var n = parseInt(str.replace(/,/g,""), 10);
+    setVal(!isNaN(n) && n > 0 ? n : 0);
+  }, [str]);
+  function onChange(e) { setStr(e.target.value.replace(/[^0-9]/g,"")); }
+  function onBlur() {
+    var n = parseInt(str.replace(/,/g,""), 10);
+    if(!isNaN(n)) setStr(n.toLocaleString("th-TH"));
+  }
+  function onFocus() {
+    setStr(String(val));
+    setTimeout(function() { if(ref.current) ref.current.select(); }, 30);
+  }
+  function setQuick(v) { setStr(v.toLocaleString("th-TH")); }
+  return {str:str, val:val, ref:ref, onChange:onChange, onBlur:onBlur, onFocus:onFocus, setQuick:setQuick};
 }
 
 function MoneyInput(props) {
-var hook = props.hook, color = props.color, valid = props.valid !== false, placeholder = props.placeholder || “0”;
-return (
-<div style={{position:“relative”}}>
-<span style={{position:“absolute”,left:12,top:“50%”,transform:“translateY(-50%)”,
-fontSize:14,color:”#aaa”,pointerEvents:“none”}}>฿</span>
-<input ref={hook.ref} type=“text” inputMode=“numeric”
-value={hook.str} onChange={hook.onChange} onBlur={hook.onBlur} onFocus={hook.onFocus}
-placeholder={placeholder}
-style={{width:“100%”,padding:“11px 12px 11px 28px”,fontSize:18,fontWeight:700,color:DARK,
-border:“2px solid “ + (valid ? “#e0e0e0” : “#f5c6c6”),
-borderRadius:10,outline:“none”,background:GRAY,transition:“border .15s”,fontFamily:“inherit”}}
-onFocusCapture={function(e){e.target.style.borderColor=color;}}
-onBlurCapture={function(e){e.target.style.borderColor=valid?”#e0e0e0”:”#f5c6c6”;}}
-/>
-</div>
-);
+  var hook = props.hook, color = props.color, valid = props.valid !== false, placeholder = props.placeholder || "0";
+  return (
+    <div style={{position:"relative"}}>
+      <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",
+        fontSize:14,color:"#aaa",pointerEvents:"none"}}>฿</span>
+      <input ref={hook.ref} type="text" inputMode="numeric"
+        value={hook.str} onChange={hook.onChange} onBlur={hook.onBlur} onFocus={hook.onFocus}
+        placeholder={placeholder}
+        style={{width:"100%",padding:"11px 12px 11px 28px",fontSize:18,fontWeight:700,color:DARK,
+          border:"2px solid " + (valid ? "#e0e0e0" : "#f5c6c6"),
+          borderRadius:10,outline:"none",background:GRAY,transition:"border .15s",fontFamily:"inherit"}}
+        onFocusCapture={function(e){e.target.style.borderColor=color;}}
+        onBlurCapture={function(e){e.target.style.borderColor=valid?"#e0e0e0":"#f5c6c6";}}
+      />
+    </div>
+  );
 }
 
 // ===================== APP =====================
 function App() {
-var [age, setAge]               = useState(30);
-var [gender, setGender]         = useState(“m”);
-var [mainPlanId, setMainPlanId] = useState(“20pay”);
-var [activeRiders, setActiveRiders] = useState([]);
-var [showMainModal, setShowMainModal]   = useState(false);
-var [showRiderModal, setShowRiderModal] = useState(false);
+  var [age, setAge]               = useState(30);
+  var [gender, setGender]         = useState("m");
+  var [mainPlanId, setMainPlanId] = useState("20pay");
+  var [activeRiders, setActiveRiders] = useState([]);
+  var [showMainModal, setShowMainModal]   = useState(false);
+  var [showRiderModal, setShowRiderModal] = useState(false);
 
-var cov20     = useCovInput(1000000);
-var covEndow  = useCovInput(1000000);
-var covCISC10 = useCovInput(1000000);
-var covCISC20 = useCovInput(1000000);
+  var cov20     = useCovInput(1000000);
+  var covEndow  = useCovInput(1000000);
+  var covCISC10 = useCovInput(1000000);
+  var covCISC20 = useCovInput(1000000);
 
-function toggleRider(planId) {
-setActiveRiders(function(prev) {
-var exists = null;
-for(var i=0;i<prev.length;i++) { if(prev[i].id===planId){exists=prev[i];break;} }
-if(exists) return prev.filter(function(r){return r.id!==planId;});
-var plan = findPlan(RIDER_PLANS, planId);
-var defCov = plan && plan.covDefault ? plan.covDefault : 1000;
-return prev.concat([{
-id:planId, subIdx:0,
-covVal:defCov, covStr:defCov.toLocaleString(“th-TH”),
-}]);
-});
-}
+  function toggleRider(planId) {
+    setActiveRiders(function(prev) {
+      var exists = null;
+      for(var i=0;i<prev.length;i++) { if(prev[i].id===planId){exists=prev[i];break;} }
+      if(exists) return prev.filter(function(r){return r.id!==planId;});
+      var plan = findPlan(RIDER_PLANS, planId);
+      var defCov = plan && plan.covDefault ? plan.covDefault : 1000;
+      return prev.concat([{
+        id:planId, subIdx:0,
+        covVal:defCov, covStr:defCov.toLocaleString("th-TH"),
+      }]);
+    });
+  }
 
-function updateRider(riderId, field, value) {
-setActiveRiders(function(prev) {
-return prev.map(function(r) {
-if(r.id !== riderId) return r;
-var updated = {};
-for(var k in r) updated[k] = r[k];
-updated[field] = value;
-return updated;
-});
-});
-}
+  function updateRider(riderId, field, value) {
+    setActiveRiders(function(prev) {
+      return prev.map(function(r) {
+        if(r.id !== riderId) return r;
+        var updated = {};
+        for(var k in r) updated[k] = r[k];
+        updated[field] = value;
+        return updated;
+      });
+    });
+  }
 
-function calcRiderAnnual(rider) {
-var plan = findPlan(RIDER_PLANS, rider.id);
-if(!plan) return 0;
-if(age < plan.minAge || age > plan.maxAge) return 0;
-if(plan.hasCovInput && rider.covVal < (plan.minCov || 0)) return 0;
-return plan.calcAnnual(age, gender, rider.covVal || 0, rider.subIdx || 0);
-}
+  function calcRiderAnnual(rider) {
+    var plan = findPlan(RIDER_PLANS, rider.id);
+    if(!plan) return 0;
+    if(age < plan.minAge || age > plan.maxAge) return 0;
+    if(plan.hasCovInput && rider.covVal < (plan.minCov || 0)) return 0;
+    return plan.calcAnnual(age, gender, rider.covVal || 0, rider.subIdx || 0);
+  }
 
-var mainPlan = findPlan(MAIN_PLANS, mainPlanId);
-var covInput = mainPlanId === “20pay” ? cov20
-: mainPlanId === “endow” ? covEndow
-: mainPlanId === “cisc10” ? covCISC10
-: covCISC20;
-var mainCov = covInput.val;
+  var mainPlan = findPlan(MAIN_PLANS, mainPlanId);
+  var covInput = mainPlanId === "20pay" ? cov20
+               : mainPlanId === "endow" ? covEndow
+               : mainPlanId === "cisc10" ? covCISC10
+               : covCISC20;
+  var mainCov = covInput.val;
 
-var mainAnnual = 0;
-if(mainPlan && age >= mainPlan.minAge && age <= mainPlan.maxAge && mainCov >= mainPlan.minCov) {
-mainAnnual = mainPlan.calcAnnual(age, gender, mainCov);
-}
+  var mainAnnual = 0;
+  if(mainPlan && age >= mainPlan.minAge && age <= mainPlan.maxAge && mainCov >= mainPlan.minCov) {
+    mainAnnual = mainPlan.calcAnnual(age, gender, mainCov);
+  }
 
-var riderTotals = activeRiders.map(function(r) {
-return {id:r.id, subIdx:r.subIdx, covVal:r.covVal, annual:calcRiderAnnual(r)};
-});
-var riderSum   = riderTotals.reduce(function(s,r){return s+r.annual;}, 0);
-var grandTotal = mainAnnual + riderSum;
+  var riderTotals = activeRiders.map(function(r) {
+    return {id:r.id, subIdx:r.subIdx, covVal:r.covVal, annual:calcRiderAnnual(r)};
+  });
+  var riderSum   = riderTotals.reduce(function(s,r){return s+r.annual;}, 0);
+  var grandTotal = mainAnnual + riderSum;
 
-return (
-<div style={{minHeight:“100vh”,background:”#f0f2f5”,
-fontFamily:”‘Sarabun’,‘Noto Sans Thai’,sans-serif”,color:DARK,paddingBottom:60}}>
-<style>{`@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap'); *{box-sizing:border-box;-webkit-tap-highlight-color:transparent} input{font-family:inherit} .btn{cursor:pointer;border:none;font-family:inherit;transition:all .15s} .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:flex-end} .sheet{background:#fff;width:100%;max-width:520px;margin:0 auto;border-radius:20px 20px 0 0;overflow:hidden;max-height:88vh;display:flex;flex-direction:column} .sheet-body{overflow-y:auto;flex:1} .plan-row{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;gap:12px;transition:background .12s} .plan-row:active{background:#fafafa} .plan-row:last-child{border-bottom:none} .tag{font-size:10px;padding:2px 7px;border-radius:10px;background:#f0f0f0;color:#888} .rider-card{background:#fff;border-radius:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden}`}</style>
+  return (
+    <div style={{minHeight:"100vh",background:"#f0f2f5",
+      fontFamily:"'Sarabun','Noto Sans Thai',sans-serif",color:DARK,paddingBottom:60}}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
+        *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        input{font-family:inherit}
+        .btn{cursor:pointer;border:none;font-family:inherit;transition:all .15s}
+        .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:flex-end}
+        .sheet{background:#fff;width:100%;max-width:520px;margin:0 auto;border-radius:20px 20px 0 0;overflow:hidden;max-height:88vh;display:flex;flex-direction:column}
+        .sheet-body{overflow-y:auto;flex:1}
+        .plan-row{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;gap:12px;transition:background .12s}
+        .plan-row:active{background:#fafafa}
+        .plan-row:last-child{border-bottom:none}
+        .tag{font-size:10px;padding:2px 7px;border-radius:10px;background:#f0f0f0;color:#888}
+        .rider-card{background:#fff;border-radius:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden}
+      `}</style>
 
 ```
   {/* HEADER */}
@@ -1055,8 +1112,6 @@ fontFamily:”‘Sarabun’,‘Noto Sans Thai’,sans-serif”,color:DARK,paddin
 );
 }
 
-ReactDOM.createRoot(document.getElementById(“root”)).render(<App />);
-</script>
-
+  </script>
 </body>
 </html>
