@@ -1,5 +1,7 @@
 (function(){
-var _s=(function(){var e={};/**
+  "use strict";
+  var exports = {};
+  /**
  * @license React
  * scheduler.production.js
  *
@@ -9,7 +11,7 @@ var _s=(function(){var e={};/**
  * LICENSE file in the root directory of this source tree.
  */
 
-"use strict";
+
 function push(heap, node) {
   var index = heap.length;
   heap.push(node);
@@ -339,8 +341,21 @@ exports.unstable_wrapCallback = function (callback) {
     }
   };
 };
-return e;})();
-var _b=(function(){var e={};var require=function(m){return m==='react'?window.React:m==='scheduler'?_s:{}};/**
+
+  if(typeof window !== 'undefined') window.__sched = exports;
+  else if(typeof global !== 'undefined') global.__sched = exports;
+})();
+(function(){
+  "use strict";
+  var exports = {};
+  var React = (typeof window!=='undefined'?window:global).React;
+  var scheduler = (typeof window!=='undefined'?window:global).__sched;
+  function require(m){
+    if(m==='react') return React;
+    if(m==='scheduler') return scheduler;
+    return {};
+  }
+  /**
  * @license React
  * react-dom.production.js
  *
@@ -350,7 +365,7 @@ var _b=(function(){var e={};var require=function(m){return m==='react'?window.Re
  * LICENSE file in the root directory of this source tree.
  */
 
-"use strict";
+
 var React = require("react");
 function formatProdErrorMessage(code) {
   var url = "https://react.dev/errors/" + code;
@@ -550,8 +565,21 @@ exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
 exports.version = "19.2.4";
-return e;})();
-var _c=(function(){var e={};var require=function(m){return m==='react'?window.React:m==='scheduler'?_s:m==='react-dom'?_b:{}};/**
+
+  if(typeof window !== 'undefined') window.__rdBase = exports;
+  else if(typeof global !== 'undefined') global.__rdBase = exports;
+})();
+(function(){
+  "use strict";
+  var exports = {};
+  var g = typeof window!=='undefined'?window:global;
+  function require(m){
+    if(m==='react') return g.React;
+    if(m==='scheduler') return g.__sched;
+    if(m==='react-dom') return g.__rdBase;
+    return {};
+  }
+  /**
  * @license React
  * react-dom-client.production.js
  *
@@ -564,7 +592,7 @@ var _c=(function(){var e={};var require=function(m){return m==='react'?window.Re
 /*
  Modernizr 3.0.0pre (Custom Build) | MIT
 */
-"use strict";
+
 var Scheduler = require("scheduler"),
   React = require("react"),
   ReactDOM = require("react-dom");
@@ -16600,6 +16628,7 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   return new ReactDOMHydrationRoot(initialChildren);
 };
 exports.version = "19.2.4";
-return e;})();
-window.ReactDOM={createRoot:_c.createRoot};
+
+  if(typeof window !== 'undefined') window.ReactDOM = {createRoot: exports.createRoot};
+  else if(typeof global !== 'undefined') global.ReactDOM = {createRoot: exports.createRoot};
 })();

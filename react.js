@@ -1,6 +1,7 @@
 (function(){
-var e={};
-/**
+  "use strict";
+  var exports = {};
+  /**
  * @license React
  * react.production.js
  *
@@ -10,7 +11,7 @@ var e={};
  * LICENSE file in the root directory of this source tree.
  */
 
-"use strict";
+
 var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_PORTAL_TYPE = Symbol.for("react.portal"),
   REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
@@ -543,5 +544,6 @@ exports.useTransition = function () {
 };
 exports.version = "19.2.4";
 
-window.React=e;
+  if(typeof window !== 'undefined') window.React = exports;
+  else if(typeof global !== 'undefined') global.React = exports;
 })();
