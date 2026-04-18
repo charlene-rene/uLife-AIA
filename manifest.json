@@ -1,0 +1,13 @@
+{
+  "name": "uLife AIA",
+  "short_name": "uLife AIA",
+  "description": "AIA Insurance Premium Calculator",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#E8175D",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icon.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
