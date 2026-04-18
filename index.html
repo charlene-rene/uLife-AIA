@@ -34,7 +34,6 @@ input{font-family:inherit}
 <script>
 try {
   var useState=React.useState,useEffect=React.useEffect,useRef=React.useRef;
-var {useState,useEffect,useRef} = React;
 
 // ===================== RATE DATA =====================
 const aia20PayRates = {
@@ -494,12 +493,18 @@ function App() {
 
       /* HEADER */
       , React.createElement('div', { style: {background:"#fff",borderBottom:"1px solid #e8e8e8",padding:"14px 16px",
-        display:"flex",alignItems:"center",gap:10}}
-        , React.createElement('div', { style: {width:34,height:34,background:PINK,borderRadius:8,display:"flex",
-          alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:16,flexShrink:0}}, "A")
-        , React.createElement('div', {}
-          , React.createElement('div', { style: {fontSize:15,fontWeight:700}}, "uLife AIA" )
-          , React.createElement('div', { style: {fontSize:11,color:MUTED}}, "Insurance Premium Calculator"  )
+        display:"flex",alignItems:"center",justifyContent:"space-between"}}
+        , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:10}}
+          , React.createElement('div', { style: {width:34,height:34,background:PINK,borderRadius:8,display:"flex",
+            alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:16,flexShrink:0}}, "u")
+          , React.createElement('div', {}
+            , React.createElement('div', { style: {fontSize:15,fontWeight:700}}, "uLife AIA" )
+            , React.createElement('div', { style: {fontSize:11,color:MUTED}}, "Insurance Premium Calculator"  )
+          )
+        )
+        , React.createElement('div', { style: {fontSize:11,color:"#bbb",textAlign:"right",lineHeight:1.4}}
+          , React.createElement('div', {}, "by")
+          , React.createElement('div', { style: {fontWeight:700,color:PINK,fontSize:12}}, "CHIVAS AIA" )
         )
       )
 
