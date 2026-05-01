@@ -319,6 +319,41 @@ function getCIAnnual(age, gender, cov) {
   return (rate * cov) / 1000;
 }
 
+// ===== AIA HB EXTRA อัตราต่อเงินเอาประกัน 100 บาท/ปี =====
+var hbExtraRates = {
+  "15d-20": {m:360, f:325},
+  "21-35":  {m:210, f:280},
+  "36-40":  {m:230, f:290},
+  "41-45":  {m:250, f:320},
+  "46-50":  {m:290, f:370},
+  "51-55":  {m:350, f:400},
+  "56-60":  {m:420, f:460},
+  "61-65":  {m:510, f:490},
+  "66-70":  {m:710, f:600},
+  "71-75":  {m:910, f:710},
+  "76-79":  {m:1140,f:840},
+};
+
+function getHBExtraGroup(age) {
+  if(age <= 20) return "15d-20";
+  if(age <= 35) return "21-35";
+  if(age <= 40) return "36-40";
+  if(age <= 45) return "41-45";
+  if(age <= 50) return "46-50";
+  if(age <= 55) return "51-55";
+  if(age <= 60) return "56-60";
+  if(age <= 65) return "61-65";
+  if(age <= 70) return "66-70";
+  if(age <= 75) return "71-75";
+  return "76-79";
+}
+
+function getHBExtraRate(age, gender) {
+  var grp = getHBExtraGroup(age);
+  var row = hbExtraRates[grp];
+  return row ? (row[gender] || 0) : 0;
+}
+
 const RIDER_PLANS = [
   {
     id:"hh", name:"AIA HEALTH HAPPY",
@@ -350,6 +385,21 @@ const RIDER_PLANS = [
     },
   },
   {
+    id:"hbextra", name:"AIA HB EXTRA",
+    tags:["ค่าชดเชยรายวัน","ถึงอายุ 80 ปี"], color:"#C0392B",
+    minAge:1, maxAge:79,
+    hasCovInput:true, minCov:100, covDefault:1000,
+    calcAnnual: function(age, gender, cov) {
+      var rate = getHBExtraRate(age, gender);
+      return (rate * cov) / 100;
+    },
+    rateNote: function(age, gender) {
+      var rate = getHBExtraRate(age, gender);
+      var grp  = getHBExtraGroup(age);
+      return "อัตราเบี้ย " + rate + " บาท / เงินเอาประกัน 100 บาท · กลุ่มอายุ " + grp + " ปี";
+    },
+  },
+  {
     id:"ci", name:"AIA MULTI-PAY CI PLUS",
     tags:["โรคร้ายแรง","Multi-Pay"], color:"#D4500A",
     minAge:1, maxAge:98,
@@ -367,7 +417,188 @@ const RIDER_PLANS = [
   },
 ];
 
-// ===================== HELPERS =====================
+// ===== AIA CI PLUS อัตราต่อ 1,000 บาท/ปี =====
+var ciPlusRates = {
+  "15d-15":{m:2.62,f:2.27},
+  "16-20": {m:2.76,f:2.06},
+  "21-25": {m:2.89,f:2.15},
+  "26-30": {m:3.16,f:2.55},
+  "31-35": {m:3.84,f:3.53},
+  "36-40": {m:5.23,f:4.60},
+  "41-45": {m:10.19,f:6.38},
+  "46-50": {m:15.92,f:10.17},
+  "51-55": {m:25.38,f:15.92},
+  "56-60": {m:42.31,f:26.09},
+  "61-65": {m:61.04,f:35.81},
+  "66-70": {m:81.76,f:51.71},
+  "71-75": {m:112.64,f:73.52},
+  "76-80": {m:142.38,f:104.55},
+  "81-85": {m:183.10,f:139.66},
+  "86-90": {m:261.54,f:240.90},
+  "91-95": {m:386.58,f:384.25},
+  "96-98": {m:503.41,f:497.74},
+};
+
+function getCIPlusGroup(age) {
+  if(age <= 15) return "15d-15";
+  if(age <= 20) return "16-20";
+  if(age <= 25) return "21-25";
+  if(age <= 30) return "26-30";
+  if(age <= 35) return "31-35";
+  if(age <= 40) return "36-40";
+  if(age <= 45) return "41-45";
+  if(age <= 50) return "46-50";
+  if(age <= 55) return "51-55";
+  if(age <= 60) return "56-60";
+  if(age <= 65) return "61-65";
+  if(age <= 70) return "66-70";
+  if(age <= 75) return "71-75";
+  if(age <= 80) return "76-80";
+  if(age <= 85) return "81-85";
+  if(age <= 90) return "86-90";
+  if(age <= 95) return "91-95";
+  return "96-98";
+}
+
+function getCIPlusRate(age, gender) {
+  var grp = getCIPlusGroup(age);
+  var row = ciPlusRates[grp];
+  return row ? (row[gender] || 0) : 0;
+}
+
+// CI TopUp อัตราเดียวกับ CI Plus ทุนต้องเป็น 40% ของ CI Plus
+
+// ===== AIA HEALTH CANCER (AHC) อัตราต่อ 10 หน่วย/ปี =====
+// ไม่สูบบุหรี่ รับส่วนลด 10% (อายุ 16-65)
+var ahcRates = {
+  "1m-15": {smk:730,  noSmk:730},
+  "16-35": {smk:1460, noSmk:1314},
+  "36-40": {smk:2443, noSmk:2199},
+  "41-45": {smk:3616, noSmk:3254},
+  "46-50": {smk:5255, noSmk:4729},
+  "51-55": {smk:7768, noSmk:6991},
+  "56-60": {smk:11167,noSmk:10050},
+  "61-65": {smk:15280,noSmk:13752},
+  "66-70": {smk:30000,noSmk:30000},
+  "71-75": {smk:39000,noSmk:39000},
+  "76-79": {smk:48000,noSmk:48000},
+};
+// หมายเหตุ: อายุ 66+ ชาย/หญิงต่างกัน แต่ข้อมูลในตารางชาย=หญิงยกเว้นช่องหญิง
+// ใช้ข้อมูลจากตาราง: 66-70 ชาย 30,000 หญิง 17,500 / 71-75 ชาย 39,000 หญิง 23,000 / 76-79 ชาย 48,000 หญิง 28,500
+var ahcRatesGender = {
+  "66-70": {m:30000, f:17500},
+  "71-75": {m:39000, f:23000},
+  "76-79": {m:48000, f:28500},
+};
+
+function getAHCGroup(age) {
+  if(age <= 15) return "1m-15";
+  if(age <= 35) return "16-35";
+  if(age <= 40) return "36-40";
+  if(age <= 45) return "41-45";
+  if(age <= 50) return "46-50";
+  if(age <= 55) return "51-55";
+  if(age <= 60) return "56-60";
+  if(age <= 65) return "61-65";
+  if(age <= 70) return "66-70";
+  if(age <= 75) return "71-75";
+  return "76-79";
+}
+
+function getAHCAnnual(age, gender, units, smoke) {
+  var grp = getAHCGroup(age);
+  var ratePerUnit;
+  if(age >= 66) {
+    var row = ahcRatesGender[grp];
+    ratePerUnit = row ? (row[gender] || 0) : 0;
+  } else {
+    var row2 = ahcRates[grp];
+    if(!row2) return 0;
+    ratePerUnit = smoke ? row2.smk : row2.noSmk;
+  }
+  return (ratePerUnit * units) / 10;
+}
+
+const RIDER_PLANS_EXTRA = [
+  {
+    id:"ahc", name:"AIA HEALTH CANCER",
+    tags:["มะเร็ง","ต่ออายุได้"], color:"#E67E22",
+    minAge:1, maxAge:79,
+    hasUnitInput:true, unitDefault:10, minUnit:3,
+    hasSmoke:false,
+    calcAnnual: function(age, gender, cov, subIdx, units, smoke) {
+      return getAHCAnnual(age, gender, units || 10, false);
+    },
+    rateNote: function(age, gender, smoke) {
+      var grp = getAHCGroup(age);
+      if(age >= 66) {
+        var row = ahcRatesGender[grp];
+        var r = row ? (row[gender] || 0) : 0;
+        return "เบี้ย " + r.toLocaleString("th-TH") + " บาท / 10 หน่วย · ชาย/หญิงต่างกัน";
+      }
+      var row2 = ahcRates[grp];
+      if(!row2) return "";
+      return "เบี้ย " + row2.noSmk.toLocaleString("th-TH") + " บาท / 10 หน่วย";
+    },
+  },
+  {
+    id:"ciplus", name:"AIA CI PLUS",
+    tags:["โรคร้ายแรง","ต่ออายุได้ถึง 98 ปี"], color:"#8E44AD",
+    minAge:1, maxAge:75, minCov:100000,
+    hasCovInput:true, covDefault:1000000,
+    calcAnnual: function(age, gender, cov) {
+      return (getCIPlusRate(age, gender) * cov) / 1000;
+    },
+    rateNote: function(age, gender) {
+      var r = getCIPlusRate(age, gender);
+      var grp = getCIPlusGroup(age);
+      return "อัตราเบี้ย " + r + " บาท/พัน · กลุ่มอายุ " + grp + " ปี";
+    },
+  },
+  {
+    id:"citopup", name:"AIA CI TOPUP",
+    tags:["โรคร้ายแรง","แนบท้าย CI Plus","40% ของ CI Plus"], color:"#2E86AB",
+    minAge:1, maxAge:75, minCov:40000,
+    hasCovInput:true, covDefault:400000,
+    calcAnnual: function(age, gender, cov) {
+      return (1.65 * cov) / 1000;
+    },
+    rateNote: function(age, gender) {
+      return "อัตราเบี้ย 1.65 บาท/พัน (คงที่ทุกอายุ)";
+    },
+    topupNote: true,
+  },
+];
+
+// ===================== VITALITY DISCOUNT =====================
+// Merge RIDER_PLANS_EXTRA into RIDER_PLANS
+RIDER_PLANS_EXTRA.forEach(function(p){ RIDER_PLANS.push(p); });
+
+var VITALITY_EXTRA = 0.05;
+// AHC รับส่วนลด Vitality เฉพาะเมื่อ >= 5 หน่วย
+var VITALITY_DISC_COND = { ahc: function(r){ return (r.units||0) >= 5; } };
+var VITALITY_RIDERS = ["ci","ciplus","citopup","ahc","hh","hbextra"];
+
+function calcVitalityDiscount(riderTotals, activeRiders) {
+  var vActive = riderTotals.filter(function(r) {
+    return VITALITY_RIDERS.indexOf(r.id) >= 0 && r.annual > 0;
+  });
+  var vCount = 0;
+  vActive.forEach(function(r) {
+    vCount += (r.id === "ci") ? 2 : 1;
+  });
+  var hasExtra = vCount >= 3;
+  var items = vActive.map(function(r) {
+    var cond = VITALITY_DISC_COND[r.id];
+    var eligible = hasExtra && (!cond || cond(r));
+    var discAmt = eligible ? Math.round(r.annual * VITALITY_EXTRA) : 0;
+    return { id:r.id, annual:r.annual, baseDisc:0, extraDisc:eligible?VITALITY_EXTRA:0, totalDisc:eligible?VITALITY_EXTRA:0, discAmt:discAmt };
+  });
+  var totalDiscAmt = items.reduce(function(s,x){return s+x.discAmt;},0);
+  return { items:items, hasExtra:hasExtra, vCount:vCount, totalDiscAmt:totalDiscAmt };
+}
+
+
 function fmt(n) { return Math.round(n).toLocaleString("th-TH"); }
 var PINK = "#E8175D";
 var GRAY = "#f5f5f5";
@@ -429,10 +660,10 @@ function App() {
   var [showMainModal, setShowMainModal]   = useState(false);
   var [showRiderModal, setShowRiderModal] = useState(false);
 
-  var cov20     = useCovInput(1000000);
-  var covEndow  = useCovInput(1000000);
-  var covCISC10 = useCovInput(1000000);
-  var covCISC20 = useCovInput(1000000);
+  var cov20     = useCovInput(100000);
+  var covEndow  = useCovInput(100000);
+  var covCISC10 = useCovInput(200000);
+  var covCISC20 = useCovInput(200000);
 
   function toggleRider(planId) {
     setActiveRiders(function(prev) {
@@ -440,10 +671,12 @@ function App() {
       for(var i=0;i<prev.length;i++) { if(prev[i].id===planId){exists=prev[i];break;} }
       if(exists) return prev.filter(function(r){return r.id!==planId;});
       var plan = findPlan(RIDER_PLANS, planId);
-      var defCov = plan && plan.covDefault ? plan.covDefault : 1000;
+      var defCov  = plan && plan.covDefault  ? plan.covDefault  : 1000;
+      var defUnit = plan && plan.unitDefault ? plan.unitDefault : 10;
       return prev.concat([{
         id:planId, subIdx:0,
         covVal:defCov, covStr:defCov.toLocaleString("th-TH"),
+        units:defUnit, smoke:false,
       }]);
     });
   }
@@ -465,6 +698,9 @@ function App() {
     if(!plan) return 0;
     if(age < plan.minAge || age > plan.maxAge) return 0;
     if(plan.hasCovInput && rider.covVal < (plan.minCov || 0)) return 0;
+    if(plan.hasUnitInput) {
+      return plan.calcAnnual(age, gender, 0, rider.subIdx || 0, rider.units || 10, rider.smoke || false);
+    }
     return plan.calcAnnual(age, gender, rider.covVal || 0, rider.subIdx || 0);
   }
 
@@ -481,7 +717,7 @@ function App() {
   }
 
   var riderTotals = activeRiders.map(function(r) {
-    return {id:r.id, subIdx:r.subIdx, covVal:r.covVal, annual:calcRiderAnnual(r)};
+    return {id:r.id, subIdx:r.subIdx, covVal:r.covVal, units:r.units, smoke:r.smoke, annual:calcRiderAnnual(r)};
   });
   var riderSum   = riderTotals.reduce(function(s,r){return s+r.annual;}, 0);
   var grandTotal = mainAnnual + riderSum;
@@ -592,7 +828,7 @@ function App() {
               , React.createElement('div', { style: {display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}
                 , (mainPlan.id === "cisc10" || mainPlan.id === "cisc20"
                   ? [200000,500000,1000000,3000000,5000000]
-                  : [500000,1000000,2000000,5000000]
+                  : [100000,500000,1000000,2000000,5000000]
                 ).map(function(v) {
                   return (
                     React.createElement('button', { key: v, className: "btn", onClick: function(){covInput.setQuick(v);}, style: {
@@ -828,6 +1064,52 @@ function App() {
                       )
                     )
 
+                    /* HB EXTRA */
+                    , plan.id === "hbextra" && (
+                      React.createElement('div', {}
+                        , React.createElement('div', { style: {marginBottom:8}}
+                          , React.createElement('div', { style: {fontSize:12,color:MUTED,marginBottom:5}}, "จำนวนเงินค่าชดเชยรายวัน (บาท/วัน)" )
+                          , React.createElement('div', { style: {position:"relative"}}
+                            , React.createElement('span', { style: {position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",
+                              fontSize:14,color:"#aaa",pointerEvents:"none"}}, "฿")
+                            , React.createElement('input', { type: "text", inputMode: "numeric",
+                              value: rider.covStr, placeholder: "1,000",
+                              onChange: handleCovChange, onBlur: handleCovBlur, onFocus: handleCovFocus,
+                              style: {width:"100%",padding:"10px 12px 10px 28px",fontSize:17,fontWeight:700,
+                                color:DARK,border:"2px solid #e0e0e0",borderRadius:10,outline:"none",
+                                background:GRAY,fontFamily:"inherit"},
+                              onFocusCapture: function(e){e.target.style.borderColor=plan.color;},
+                              onBlurCapture: function(e){e.target.style.borderColor="#e0e0e0";}}
+                            )
+                          )
+                          , React.createElement('div', { style: {fontSize:11,color:MUTED,marginTop:3}}, "ขั้นต่ำ 100 บาท/วัน"  )
+                        )
+                        , React.createElement('div', { style: {display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}
+                          , [500,1000,2000,3000].map(function(v) {
+                            var active = rider.covVal === v;
+                            return (
+                              React.createElement('button', { key: v, className: "btn", onClick: function(){
+                                updateRider(rider.id,"covVal",v);
+                                updateRider(rider.id,"covStr",v.toLocaleString("th-TH"));
+                              }, style: {
+                                padding:"5px 10px",borderRadius:20,fontSize:11,
+                                border:"1px solid "+(active?plan.color:"#e0e0e0"),
+                                background:active?plan.color+"12":"#fff",
+                                color:active?plan.color:"#777",fontWeight:active?700:400,
+                              }}, v.toLocaleString("th-TH"))
+                            );
+                          })
+                        )
+                        , React.createElement('div', { style: {padding:"7px 10px",background:plan.color+"0a",borderRadius:8,
+                          fontSize:12,color:plan.color,marginBottom:8}}
+                          , plan.rateNote(age, gender)
+                        )
+                        , React.createElement('div', { style: {padding:"7px 10px",background:"#f8f8f8",borderRadius:8,fontSize:11,color:"#888"}}, "คุ้มครองถึงอายุ 80 ปี · ต่ออายุได้ถึง 79 ปี · ชาย/หญิง อัตราต่างกัน"
+
+                        )
+                      )
+                    )
+
                     /* CI */
                     , plan.id === "ci" && (
                       React.createElement('div', {}
@@ -874,6 +1156,88 @@ function App() {
                         )
 
                         , React.createElement('div', { style: {padding:"8px 10px",background:"#f8f8f8",borderRadius:8,fontSize:11,color:"#888"}}, "รวมเบี้ย AIA Multi-Pay CI + AIA Total Care · ต่ออายุได้ · อายุ 1–98 ปี"
+
+                        )
+                      )
+                    )
+
+                    /* AHC */
+                    , plan.id === "ahc" && (
+                      React.createElement('div', {}
+                        , React.createElement('div', { style: {marginBottom:8}}
+                          , React.createElement('div', { style: {fontSize:12,color:MUTED,marginBottom:5}}, "จำนวนหน่วย (ขั้นต่ำ 3 หน่วย)"   )
+                          , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:8}}
+                            , React.createElement('button', { className: "btn", onClick: function(){updateRider(rider.id,"units",Math.max(3,(rider.units||10)-1));}, style: {width:34,height:34,borderRadius:8,border:"1px solid #e0e0e0",background:GRAY,fontSize:18,color:"#555",flexShrink:0}}, "−")
+                            , React.createElement('div', { style: {flex:1,textAlign:"center",fontSize:22,fontWeight:700,color:plan.color}}, rider.units||10)
+                            , React.createElement('button', { className: "btn", onClick: function(){updateRider(rider.id,"units",(rider.units||10)+1);}, style: {width:34,height:34,borderRadius:8,border:"1px solid #e0e0e0",background:GRAY,fontSize:18,color:"#555",flexShrink:0}}, "+")
+                            , React.createElement('span', { style: {fontSize:13,color:MUTED,flexShrink:0}}, "หน่วย")
+                          )
+                        )
+                        , React.createElement('div', { style: {display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}
+                          , [5,10,20,30,50].map(function(v){
+                            var active = (rider.units||10) === v;
+                            return React.createElement('button', { key: v, className: "btn", onClick: function(){updateRider(rider.id,"units",v);}, style: {padding:"5px 10px",borderRadius:20,fontSize:11,border:"1px solid "+(active?plan.color:"#e0e0e0"),background:active?plan.color+"12":"#fff",color:active?plan.color:"#777",fontWeight:active?700:400}}, v, " หน่วย" );
+                          })
+                        )
+                        , React.createElement('div', { style: {padding:"7px 10px",background:plan.color+"0a",borderRadius:8,fontSize:12,color:plan.color,marginBottom:4}}
+                          , plan.rateNote(age, gender, false)
+                        )
+                        , React.createElement('div', { style: {padding:"7px 10px",background:"#f8f8f8",borderRadius:8,fontSize:11,color:"#888"}}, "เข้าร่วม AIA Vitality · ต่ออายุได้ · ชาย/หญิงอัตราเดียวกัน (ยกเว้นอายุ 66+)"
+
+                        )
+                      )
+                    )
+
+                    /* CI PLUS */
+                    , (plan.id === "ciplus" || plan.id === "citopup") && (
+                      React.createElement('div', {}
+                        , React.createElement('div', { style: {marginBottom:8}}
+                          , React.createElement('div', { style: {fontSize:12,color:MUTED,marginBottom:5}}
+                            , plan.id === "citopup" ? "ทุนประกัน (= 40% ของ CI Plus) (บาท)" : "ทุนประกัน (บาท)"
+                          )
+                          , React.createElement('div', { style: {position:"relative"}}
+                            , React.createElement('span', { style: {position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",
+                              fontSize:14,color:"#aaa",pointerEvents:"none"}}, "฿")
+                            , React.createElement('input', { type: "text", inputMode: "numeric",
+                              value: rider.covStr, placeholder: plan.id==="citopup"?"400,000":"1,000,000",
+                              onChange: handleCovChange, onBlur: handleCovBlur, onFocus: handleCovFocus,
+                              style: {width:"100%",padding:"10px 12px 10px 28px",fontSize:17,fontWeight:700,
+                                color:DARK,border:"2px solid #e0e0e0",borderRadius:10,outline:"none",
+                                background:GRAY,transition:"border .15s",fontFamily:"inherit"},
+                              onFocusCapture: function(e){e.target.style.borderColor=plan.color;},
+                              onBlurCapture: function(e){e.target.style.borderColor="#e0e0e0";}}
+                            )
+                          )
+                        )
+                        , React.createElement('div', { style: {display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}
+                          , (plan.id === "citopup"
+                            ? [40000,100000,200000,400000,1000000]
+                            : [100000,500000,1000000,2000000,5000000]
+                          ).map(function(v) {
+                            var active = rider.covVal === v;
+                            return (
+                              React.createElement('button', { key: v, className: "btn", onClick: function(){
+                                updateRider(rider.id,"covVal",v);
+                                updateRider(rider.id,"covStr",v.toLocaleString("th-TH"));
+                              }, style: {
+                                padding:"5px 10px",borderRadius:20,fontSize:11,
+                                border:"1px solid "+(active?plan.color:"#e0e0e0"),
+                                background:active?plan.color+"12":"#fff",
+                                color:active?plan.color:"#777",fontWeight:active?700:400,
+                              }}, v>=1000000?(v/1000000)+"ล้าน":(v/1000)+"K")
+                            );
+                          })
+                        )
+                        , React.createElement('div', { style: {padding:"8px 10px",background:plan.color+"0a",borderRadius:8,
+                          fontSize:12,color:plan.color,marginBottom:8}}
+                          , plan.rateNote(age, gender)
+                        )
+                        , plan.id === "citopup" && (
+                          React.createElement('div', { style: {padding:"7px 10px",background:"#fff8e1",borderRadius:8,fontSize:11,color:"#e6a817",marginBottom:4}}, "⚠️ ต้องซื้อ CI Plus ก่อน · ทุนต้องเป็น 40% ของ CI Plus"
+
+                          )
+                        )
+                        , React.createElement('div', { style: {padding:"7px 10px",background:"#f8f8f8",borderRadius:8,fontSize:11,color:"#888"}}, "อายุรับประกัน 15 วัน – 75 ปี · ต่ออายุได้ถึง 98 ปี · เข้าร่วม AIA Vitality"
 
                         )
                       )
@@ -956,6 +1320,94 @@ function App() {
         , React.createElement('div', { style: {marginTop:16,fontSize:11,color:"#bbb",textAlign:"center",lineHeight:1.6}}, "ผลการคำนวณเป็นค่าประมาณการเบื้องต้นเท่านั้น"
 
         )
+
+        /* VITALITY SECTION */
+        , (function(){
+          var vit = calcVitalityDiscount(riderTotals, activeRiders);
+          if(vit.items.length === 0) return null;
+          var afterDisc = grandTotal - vit.totalDiscAmt;
+          return (
+            React.createElement('div', { style: {background:"#fff",borderRadius:14,overflow:"hidden",
+              boxShadow:"0 1px 6px rgba(0,0,0,.08)",marginTop:12}}
+              /* Header */
+              , React.createElement('div', { style: {background:"#1a1a2e",padding:"12px 16px",display:"flex",alignItems:"center",gap:8}}
+                , React.createElement('div', { style: {width:28,height:28,borderRadius:7,background:"#E8175D",display:"flex",
+                  alignItems:"center",justifyContent:"center",flexShrink:0}}
+                  , React.createElement('span', { style: {color:"#fff",fontSize:13,fontWeight:700}}, "V")
+                )
+                , React.createElement('div', {}
+                  , React.createElement('div', { style: {fontSize:13,fontWeight:700,color:"#fff"}}, "AIA Vitality Bonus"  )
+                  , React.createElement('div', { style: {fontSize:10,color:"rgba(255,255,255,.6)"}}, "ส่วนลดเบี้ยแรกเข้า · ปีแรกเท่านั้น"  )
+                )
+                , vit.hasExtra && (
+                  React.createElement('div', { style: {marginLeft:"auto",background:"#E8175D",borderRadius:6,
+                    padding:"3px 8px",fontSize:10,fontWeight:700,color:"#fff"}}, "ครบ 3 แผน ✓"
+
+                  )
+                )
+              )
+
+              , React.createElement('div', { style: {padding:"12px 16px"}}
+                /* แสดงรายการส่วนลดแต่ละแผน */
+                , vit.items.map(function(x) {
+                  var rp = findPlan(RIDER_PLANS, x.id);
+                  if(!rp) return null;
+                  return (
+                    React.createElement('div', { key: x.id, style: {marginBottom:10}}
+                      , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}
+                        , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:6}}
+                          , React.createElement('div', { style: {width:7,height:7,borderRadius:"50%",background:rp.color}})
+                          , React.createElement('span', { style: {fontSize:12,color:"#555",fontWeight:600}}, rp.name)
+                        )
+                        , React.createElement('span', { style: {fontSize:12,color:"#E8175D",fontWeight:700}}, "-฿", fmt(x.discAmt))
+                      )
+                      , React.createElement('div', { style: {display:"flex",gap:6,paddingLeft:13}}
+                        , x.extraDisc > 0 && (
+                          React.createElement('span', { style: {fontSize:10,padding:"2px 6px",borderRadius:8,
+                            background:"#fff8e1",color:"#e6a817",border:"1px solid #ffe082"}}, "Vitality 5%"
+
+                          )
+                        )
+                        , !x.extraDisc && (
+                          React.createElement('span', { style: {fontSize:10,padding:"2px 6px",borderRadius:8,
+                            background:"#f5f5f5",color:"#bbb"}}, "ยังไม่ครบ 3 แผน"
+
+                          )
+                        )
+                      )
+                    )
+                  );
+                })
+
+                , !vit.hasExtra && (
+                  React.createElement('div', { style: {padding:"8px 10px",background:"#f8f8f8",borderRadius:8,
+                    fontSize:11,color:"#999",marginBottom:10}}, "💡 ครบ 3 แผน Vitality → ลด 5% ทุกแผน Vitality · ตอนนี้มี "
+                                , vit.vCount, "/3 แผน"
+                  )
+                )
+
+                /* สรุป */
+                , React.createElement('div', { style: {borderTop:"1px solid #f0f0f0",paddingTop:10,marginTop:4}}
+                  , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",marginBottom:5}}
+                    , React.createElement('span', { style: {fontSize:12,color:MUTED}}, "เบี้ยรวมก่อน Vitality" )
+                    , React.createElement('span', { style: {fontSize:13,color:"#999",textDecoration:"line-through"}}, "฿", fmt(grandTotal))
+                  )
+                  , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",marginBottom:5}}
+                    , React.createElement('span', { style: {fontSize:12,color:"#E8175D"}}, "ส่วนลด Vitality รวม"  )
+                    , React.createElement('span', { style: {fontSize:13,fontWeight:700,color:"#E8175D"}}, "-฿", fmt(vit.totalDiscAmt))
+                  )
+                  , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",alignItems:"center",
+                    padding:"10px 12px",background:"#1a1a2e",borderRadius:10,marginTop:6}}
+                    , React.createElement('div', {}
+                      , React.createElement('div', { style: {fontSize:11,color:"rgba(255,255,255,.6)"}}, "เบี้ยหลัง Vitality (ปีแรก)"  )
+                    )
+                    , React.createElement('div', { style: {fontSize:24,fontWeight:700,color:"#fff"}}, "฿", fmt(afterDisc))
+                  )
+                )
+              )
+            )
+          );
+        })()
       )
 
       /* MAIN MODAL */
