@@ -189,6 +189,42 @@ function getCISCDisc20(cov) {
 }
 
 // ===================== PLAN DEFINITIONS =====================
+// ===== AIA CI ProCare เบี้ยรวม (ชีวิต+โรคร้าย) ต่อ 1,000 บาท/ปี =====
+// index 0 = 15 วัน, 1-60 = อายุ 1-60 ปี
+var ciProCareMale = [
+  35.52,36.42,37.35,38.33,39.35,40.40,41.50,42.65,43.85,45.09,46.38,
+  47.69,49.05,50.43,51.85,53.32,54.80,56.33,57.95,59.61,61.33,63.13,
+  65.02,66.96,68.98,71.08,73.25,75.49,77.85,80.33,82.91,85.58,88.37,
+  91.31,94.41,97.69,100.42,103.30,106.36,109.61,113.06,116.63,120.27,
+  123.98,127.85,131.87,138.39,145.41,153.00,161.15,169.88,181.53,193.94,
+  203.43,215.19,227.20,242.30,256.40,272.20,289.98,310.00
+];
+var ciProCareFemale = [
+  30.63,31.25,31.90,32.58,33.31,34.04,34.81,35.61,36.43,37.29,38.18,
+  39.28,40.42,41.60,42.82,44.06,45.34,46.47,47.68,48.94,50.26,51.60,
+  53.00,54.43,55.91,57.45,59.06,60.73,62.46,64.26,66.12,68.24,70.43,
+  72.68,75.03,77.45,79.56,81.77,84.09,86.55,89.15,92.06,95.08,98.21,
+  101.46,104.83,108.89,113.18,117.73,122.52,127.60,133.54,137.38,140.76,
+  148.79,157.91,167.49,176.83,186.68,197.12,210.60
+];
+
+function getCIProCareRate(age, gender) {
+  // age 0 = 15 วัน (index 0), age 1-60 = index 1-60
+  var idx = age;
+  if(idx < 0) idx = 0;
+  if(idx > 60) idx = 60;
+  var arr = (gender === "f") ? ciProCareFemale : ciProCareMale;
+  return arr[idx] || 0;
+}
+
+function getCIProCareDisc(cov) {
+  if(cov >= 5000000) return 3.00;
+  if(cov >= 1000000) return 2.25;
+  if(cov >= 800000)  return 1.50;
+  if(cov >= 500000)  return 0.75;
+  return 0;
+}
+
 const MAIN_PLANS = [
   {
     id:"20pay", name:"AIA 20PAY LIFE (NON PAR)",
@@ -256,6 +292,27 @@ const MAIN_PLANS = [
     },
     rateNote: function(age, gender) {
       var r = getCISCRate(ciSC20Rates, age, gender);
+      return "อัตราเบี้ยรวม " + r + " บาท/พัน · ทุนขั้นต่ำ 200,000 บาท";
+    },
+  },
+  {
+    id:"ciprocare", name:"AIA CI ProCare",
+    tags:["โรคร้ายแรง","ชำระเบี้ย 20 ปี","ตลอดชีพ 99 ปี"], color:"#C2185B",
+    minAge:1, maxAge:60, minCov:200000,
+    calcAnnual: function(age, gender, cov) {
+      var r    = getCIProCareRate(age, gender);
+      var disc = getCIProCareDisc(cov);
+      return ((r - disc) * cov) / 1000;
+    },
+    discNote: function(cov) {
+      if(cov >= 5000000) return "ส่วนลด 3.00 บาท/พัน (5M+)";
+      if(cov >= 1000000) return "ส่วนลด 2.25 บาท/พัน (1M+)";
+      if(cov >= 800000)  return "ส่วนลด 1.50 บาท/พัน (800K+)";
+      if(cov >= 500000)  return "ส่วนลด 0.75 บาท/พัน (500K+)";
+      return "";
+    },
+    rateNote: function(age, gender) {
+      var r = getCIProCareRate(age, gender);
       return "อัตราเบี้ยรวม " + r + " บาท/พัน · ทุนขั้นต่ำ 200,000 บาท";
     },
   },
@@ -664,6 +721,7 @@ function App() {
   var covEndow  = useCovInput(100000);
   var covCISC10 = useCovInput(200000);
   var covCISC20 = useCovInput(200000);
+  var covProCare = useCovInput(200000);
 
   function toggleRider(planId) {
     setActiveRiders(function(prev) {
@@ -708,6 +766,8 @@ function App() {
   var covInput = mainPlanId === "20pay" ? cov20
                : mainPlanId === "endow" ? covEndow
                : mainPlanId === "cisc10" ? covCISC10
+               : mainPlanId === "cisc20" ? covCISC20
+               : mainPlanId === "ciprocare" ? covProCare
                : covCISC20;
   var mainCov = covInput.val;
 
@@ -826,7 +886,7 @@ function App() {
               )
 
               , React.createElement('div', { style: {display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}
-                , (mainPlan.id === "cisc10" || mainPlan.id === "cisc20"
+                , (mainPlan.id === "cisc10" || mainPlan.id === "cisc20" || mainPlan.id === "ciprocare"
                   ? [200000,500000,1000000,3000000,5000000]
                   : [100000,500000,1000000,2000000,5000000]
                 ).map(function(v) {
@@ -1429,7 +1489,7 @@ function App() {
               )
               , MAIN_PLANS.map(function(p) {
                 var active = mainPlanId === p.id;
-                var cov = p.id==="20pay" ? cov20.val : p.id==="endow" ? covEndow.val : p.id==="cisc10" ? covCISC10.val : covCISC20.val;
+                var cov = p.id==="20pay" ? cov20.val : p.id==="endow" ? covEndow.val : p.id==="cisc10" ? covCISC10.val : p.id==="cisc20" ? covCISC20.val : p.id==="ciprocare" ? covProCare.val : covCISC20.val;
                 var ageOk  = age >= p.minAge && age <= p.maxAge;
                 var prem   = ageOk && cov >= p.minCov ? p.calcAnnual(age, gender, cov) : null;
                 return (
