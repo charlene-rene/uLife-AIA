@@ -229,7 +229,7 @@ const MAIN_PLANS = [
   {
     id:"20pay", name:"AIA 20PAY LIFE (NON PAR)",
     tags:["ตลอดชีพ","ชำระเบี้ย 20 ปี"], color:"#E8175D",
-    minAge:1, maxAge:70, minCov:100000,
+    minAge:1, maxAge:70, minCov:100000, payTerm:20,
     calcAnnual: function(age, gender, cov) {
       var r    = get20PayRate(age, gender);
       var disc = cov >= 600000 ? 2 : cov >= 250000 ? 1 : 0;
@@ -242,7 +242,7 @@ const MAIN_PLANS = [
   {
     id:"endow", name:"AIA ENDOWMENT 15/25 (NON PAR)",
     tags:["สะสมทรัพย์","ไม่มีเงินปันผล"], color:"#7B52AB",
-    minAge:1, maxAge:70, minCov:100000,
+    minAge:1, maxAge:70, minCov:100000, payTerm:15,
     calcAnnual: function(age, _g, cov) {
       var r    = getEndowRate(Math.min(age, 70));
       var disc = cov >= 600000 ? 1.5 : cov >= 300000 ? 1 : 0;
@@ -258,7 +258,7 @@ const MAIN_PLANS = [
   {
     id:"cisc10", name:"AIA CI SuperCare 10/99",
     tags:["โรคร้ายแรง","ชำระเบี้ย 10 ปี","ตลอดชีพ"], color:"#1A6BB5",
-    minAge:1, maxAge:65, minCov:200000,
+    minAge:1, maxAge:65, minCov:200000, payTerm:10,
     calcAnnual: function(age, gender, cov) {
       var r    = getCISCRate(ciSC10Rates, age, gender);
       var disc = getCISCDisc10(cov);
@@ -277,7 +277,7 @@ const MAIN_PLANS = [
   {
     id:"cisc20", name:"AIA CI SuperCare 20/99",
     tags:["โรคร้ายแรง","ชำระเบี้ย 20 ปี","ตลอดชีพ"], color:"#0E8A6E",
-    minAge:1, maxAge:65, minCov:200000,
+    minAge:1, maxAge:65, minCov:200000, payTerm:20,
     calcAnnual: function(age, gender, cov) {
       var r    = getCISCRate(ciSC20Rates, age, gender);
       var disc = getCISCDisc20(cov);
@@ -298,7 +298,7 @@ const MAIN_PLANS = [
   {
     id:"ciprocare", name:"AIA CI ProCare",
     tags:["โรคร้ายแรง","ชำระเบี้ย 20 ปี","ตลอดชีพ 99 ปี"], color:"#C2185B",
-    minAge:1, maxAge:60, minCov:200000,
+    minAge:1, maxAge:60, minCov:200000, payTerm:20,
     calcAnnual: function(age, gender, cov) {
       var r    = getCIProCareRate(age, gender);
       var disc = getCIProCareDisc(cov);
@@ -634,6 +634,8 @@ RIDER_PLANS_EXTRA.forEach(function(p){ RIDER_PLANS.push(p); });
 var VITALITY_EXTRA = 0.05;
 // AHC รับส่วนลด Vitality เฉพาะเมื่อ >= 5 หน่วย
 var VITALITY_DISC_COND = { ahc: function(r){ return (r.units||0) >= 5; } };
+
+
 var VITALITY_RIDERS = ["ci","ciplus","citopup","ahc","hh","hbextra"];
 
 function calcVitalityDiscount(riderTotals, activeRiders) {
@@ -710,12 +712,24 @@ function MoneyInput(props) {
 
 // ===================== APP =====================
 function App() {
+  var [page, setPage]             = useState("main"); // "main" | "rider"
   var [age, setAge]               = useState(30);
   var [gender, setGender]         = useState("m");
   var [mainPlanId, setMainPlanId] = useState("20pay");
   var [activeRiders, setActiveRiders] = useState([]);
   var [showMainModal, setShowMainModal]   = useState(false);
   var [showRiderModal, setShowRiderModal] = useState(false);
+  // Rider calculator page state (uses RIDER_PLANS, range-of-age)
+  var [rcGender, setRcGender] = useState("m");
+  var [rcAgeFrom, setRcAgeFrom] = useState(30);
+  var [rcAgeTo, setRcAgeTo]     = useState(70);
+  var [rcAgeFromStr, setRcAgeFromStr] = useState("30");
+  var [rcAgeToStr, setRcAgeToStr]     = useState("70");
+  // selected: { hh:{subIdx:1}, ci:{covVal:1000000,covStr:"1,000,000"}, ahc:{units:10}, ... }
+  var [rcSel, setRcSel] = useState({});
+  // selected main plans on Total Premium page: { "20pay":{covVal,covStr}, ... }
+  var [rcMainSel, setRcMainSel] = useState({});
+  var [rcShowTable, setRcShowTable] = useState(false);
 
   var cov20     = useCovInput(100000);
   var covEndow  = useCovInput(100000);
@@ -762,6 +776,32 @@ function App() {
     return plan.calcAnnual(age, gender, rider.covVal || 0, rider.subIdx || 0);
   }
 
+  // คำนวณเบี้ยแผนหลักที่อายุเริ่มต้น (เบี้ยคงที่ทุกปี)
+  function calcMainAtAge(planId, cfg, g, startAge) {
+    var plan = findPlan(MAIN_PLANS, planId);
+    if(!plan) return null;
+    if(startAge < plan.minAge || startAge > plan.maxAge) return null;
+    var cov = cfg.covVal || 0;
+    if(cov < (plan.minCov || 0)) return null;
+    return plan.calcAnnual(startAge, g, cov);
+  }
+
+  // คำนวณเบี้ย rider ที่อายุใดๆ (สำหรับหน้าคำนวณช่วงอายุ) — ไม่อิง state age
+  function calcRiderAtAge(planId, cfg, g, atAge) {
+    var plan = findPlan(RIDER_PLANS, planId);
+    if(!plan) return null;
+    if(atAge < plan.minAge || atAge > plan.maxAge) return null;
+    if(plan.hasUnitInput) {
+      return plan.calcAnnual(atAge, g, 0, cfg.subIdx || 0, cfg.units || 10, false);
+    }
+    if(plan.hasCovInput) {
+      var cov = cfg.covVal || 0;
+      if(cov < (plan.minCov || 0)) return null;
+      return plan.calcAnnual(atAge, g, cov, cfg.subIdx || 0);
+    }
+    return plan.calcAnnual(atAge, g, 0, cfg.subIdx || 0);
+  }
+
   var mainPlan = findPlan(MAIN_PLANS, mainPlanId);
   var covInput = mainPlanId === "20pay" ? cov20
                : mainPlanId === "endow" ? covEndow
@@ -784,7 +824,7 @@ function App() {
 
   return (
     React.createElement('div', { style: {minHeight:"100vh",background:"#f0f2f5",
-      fontFamily:"'Sarabun','Noto Sans Thai',sans-serif",color:DARK,paddingBottom:60}}
+      fontFamily:"'Sarabun','Noto Sans Thai',sans-serif",color:DARK,paddingBottom:80}}
       
 
       /* HEADER */
@@ -804,7 +844,7 @@ function App() {
         )
       )
 
-      , React.createElement('div', { style: {maxWidth:520,margin:"0 auto",padding:"16px 14px"}}
+      , React.createElement('div', { style: {maxWidth:520,margin:"0 auto",padding:"16px 14px",display: page==="main" ? "block":"none"}}
 
         /* CUSTOMER INFO */
         , React.createElement('div', { style: {background:"#fff",borderRadius:14,padding:16,marginBottom:14,
@@ -1575,6 +1615,289 @@ function App() {
             )
           )
         )
+      )
+
+      /* ===================== RIDER CALCULATOR PAGE ===================== */
+      , (function(){
+        var af = Math.min(rcAgeFrom, rcAgeTo);
+        var at = Math.max(rcAgeFrom, rcAgeTo);
+        var selIds = Object.keys(rcSel);
+
+        function toggleSel(id){
+          setRcSel(function(prev){
+            var next = {}; for(var k in prev) next[k]=prev[k];
+            if(next[id]){ delete next[id]; }
+            else {
+              var pl = findPlan(RIDER_PLANS, id);
+              var cfg = { subIdx:0 };
+              if(pl && pl.hasCovInput){ cfg.covVal = pl.covDefault||1000; cfg.covStr = (pl.covDefault||1000).toLocaleString("th-TH"); }
+              if(pl && pl.hasUnitInput){ cfg.units = pl.unitDefault||10; }
+              next[id] = cfg;
+            }
+            return next;
+          });
+        }
+        function updateCfg(id, key, val){
+          setRcSel(function(prev){
+            var next = {}; for(var k in prev) next[k]=prev[k];
+            var c = {}; for(var kk in (next[id]||{})) c[kk]=next[id][kk];
+            c[key]=val; next[id]=c; return next;
+          });
+        }
+        var mainIds = Object.keys(rcMainSel);
+        function toggleMain(id){
+          setRcMainSel(function(prev){
+            var next = {}; for(var k in prev) next[k]=prev[k];
+            if(next[id]){ delete next[id]; }
+            else {
+              var pl = findPlan(MAIN_PLANS, id);
+              var dv = pl && pl.minCov ? pl.minCov : 100000;
+              next[id] = { covVal:dv, covStr:dv.toLocaleString("th-TH") };
+            }
+            return next;
+          });
+        }
+        function updateMain(id, key, val){
+          setRcMainSel(function(prev){
+            var next = {}; for(var k in prev) next[k]=prev[k];
+            var c = {}; for(var kk in (next[id]||{})) c[kk]=next[id][kk];
+            c[key]=val; next[id]=c; return next;
+          });
+        }
+
+        // เบี้ยรวมปีแรก (อายุเริ่มต้น) + ตารางรายปี
+        var firstYearTotal = 0;
+        mainIds.forEach(function(id){
+          var p = calcMainAtAge(id, rcMainSel[id], rcGender, af);
+          if(p!=null && p>0) firstYearTotal += p;
+        });
+        selIds.forEach(function(id){
+          var p = calcRiderAtAge(id, rcSel[id], rcGender, af);
+          if(p!=null && p>0) firstYearTotal += p;
+        });
+        var rows = []; var grandSum = 0;
+        for(var a=af; a<=at; a++){
+          var yt=0; var hasAny=false;
+          // แผนหลัก: จ่ายเบี้ยคงที่เฉพาะช่วงชำระเบี้ย (payTerm ปี นับจากอายุเริ่มต้น)
+          mainIds.forEach(function(id){
+            var pl = findPlan(MAIN_PLANS, id);
+            var payTerm = pl && pl.payTerm ? pl.payTerm : 99;
+            if(a < af + payTerm){
+              var p = calcMainAtAge(id, rcMainSel[id], rcGender, af);
+              if(p!=null && p>0){ yt+=p; hasAny=true; }
+            }
+          });
+          // rider: เบี้ยตามอายุปัจจุบัน
+          selIds.forEach(function(id){
+            var p = calcRiderAtAge(id, rcSel[id], rcGender, a);
+            if(p!=null && p>0){ yt+=p; hasAny=true; }
+          });
+          rows.push({age:a, prem:hasAny?yt:null});
+          if(hasAny) grandSum += yt;
+        }
+        var totalSelCount = mainIds.length + selIds.length;
+
+        return (
+          React.createElement('div', { style: {maxWidth:520,margin:"0 auto",padding:"16px 14px",display: page==="rider"?"block":"none"}}
+            /* เพศ + อายุช่วง */
+            , React.createElement('div', { style: {background:"#fff",borderRadius:14,padding:16,marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,.07)"}}
+              , React.createElement('div', { style: {fontSize:12,color:MUTED,fontWeight:600,marginBottom:12,textTransform:"uppercase",letterSpacing:.8}}, "เบี้ยสะสมตามช่วงอายุ")
+              , React.createElement('div', { style: {marginBottom:14}}
+                , React.createElement('div', { style: {fontSize:12,color:"#555",marginBottom:6}}, "เพศ")
+                , React.createElement('div', { style: {display:"flex",gap:8}}
+                  , [{v:"m",label:"ชาย"},{v:"f",label:"หญิง"}].map(function(o){
+                    var active = rcGender===o.v;
+                    return React.createElement('button', { key: o.v, className: "btn", onClick: function(){setRcGender(o.v);}, style: {flex:1,padding:"10px 0",borderRadius:9,fontSize:14,fontWeight:600,border:"2px solid "+(active?PINK:"#e0e0e0"),background:active?PINK+"0e":"#fff",color:active?PINK:"#777"}}, o.label);
+                  })
+                )
+              )
+              , React.createElement('div', { style: {display:"flex",gap:10}}
+                , React.createElement('div', { style: {flex:1}}
+                  , React.createElement('div', { style: {fontSize:12,color:"#555",marginBottom:6}}, "อายุเริ่มต้น")
+                  , React.createElement('input', { type: "text", inputMode: "numeric", value: rcAgeFromStr,
+                    onChange: function(e){var v=e.target.value.replace(/[^0-9]/g,"");setRcAgeFromStr(v);if(v!==""){var n=Math.max(0,Math.min(98,parseInt(v,10)));setRcAgeFrom(n);}},
+                    onBlur: function(e){var v=e.target.value.replace(/[^0-9]/g,"");var n=v===""?0:Math.max(0,Math.min(98,parseInt(v,10)));setRcAgeFrom(n);setRcAgeFromStr(String(n));},
+                    style: {width:"100%",padding:"10px 12px",fontSize:18,fontWeight:700,color:PINK,textAlign:"center",border:"2px solid #e0e0e0",borderRadius:10,outline:"none",background:GRAY,fontFamily:"inherit"}})
+                )
+                , React.createElement('div', { style: {flex:1}}
+                  , React.createElement('div', { style: {fontSize:12,color:"#555",marginBottom:6}}, "อายุสิ้นสุด")
+                  , React.createElement('input', { type: "text", inputMode: "numeric", value: rcAgeToStr,
+                    onChange: function(e){var v=e.target.value.replace(/[^0-9]/g,"");setRcAgeToStr(v);if(v!==""){var n=Math.max(0,Math.min(98,parseInt(v,10)));setRcAgeTo(n);}},
+                    onBlur: function(e){var v=e.target.value.replace(/[^0-9]/g,"");var n=v===""?0:Math.max(0,Math.min(98,parseInt(v,10)));setRcAgeTo(n);setRcAgeToStr(String(n));},
+                    style: {width:"100%",padding:"10px 12px",fontSize:18,fontWeight:700,color:PINK,textAlign:"center",border:"2px solid #e0e0e0",borderRadius:10,outline:"none",background:GRAY,fontFamily:"inherit"}})
+                )
+              )
+              , React.createElement('div', { style: {fontSize:11,color:"#bbb",marginTop:6}}, "เบี้ยจะคำนวณตาม rate ของแต่ละอายุ (เปลี่ยนทุก 5 ปี)"     )
+            )
+
+            /* เลือกแผนหลัก (หลายตัว) + ใส่ทุน */
+            , React.createElement('div', { style: {background:"#fff",borderRadius:14,padding:16,marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,.07)"}}
+              , React.createElement('div', { style: {fontSize:12,color:"#555",fontWeight:600,marginBottom:4}}, "แผนหลัก (เบี้ยคงที่)" )
+              , React.createElement('div', { style: {fontSize:11,color:"#bbb",marginBottom:10}}, "เบี้ยคงที่ · จ่ายตามระยะเวลาชำระเบี้ยของแต่ละแผน"  )
+              , MAIN_PLANS.map(function(pl){
+                var on = !!rcMainSel[pl.id];
+                var cfg = rcMainSel[pl.id] || {};
+                var premFirst = on ? calcMainAtAge(pl.id, cfg, rcGender, af) : null;
+                var ageOk = af >= pl.minAge && af <= pl.maxAge;
+                return (
+                  React.createElement('div', { key: pl.id, style: {marginBottom:10,border:"1px solid "+(on?pl.color+"55":"#eee"),borderRadius:11,overflow:"hidden"}}
+                    , React.createElement('button', { className: "btn", onClick: function(){toggleMain(pl.id);}, style: {width:"100%",display:"flex",alignItems:"center",gap:10,padding:"11px 13px",background:on?pl.color+"0c":"#fff"}}
+                      , React.createElement('div', { style: {width:20,height:20,borderRadius:6,flexShrink:0,border:"2px solid "+(on?pl.color:"#ccc"),background:on?pl.color:"#fff",display:"flex",alignItems:"center",justifyContent:"center"}}
+                        , on && React.createElement('span', { style: {color:"#fff",fontSize:13,fontWeight:700}}, "✓")
+                      )
+                      , React.createElement('span', { style: {fontSize:13,fontWeight:600,color:on?pl.color:"#555",flex:1,textAlign:"left"}}, pl.name)
+                      , on && React.createElement('span', { style: {fontSize:13,fontWeight:700,color:pl.color}}, premFirst!=null&&premFirst>0?"฿"+fmt(premFirst):"—")
+                    )
+                    , on && (
+                      React.createElement('div', { style: {padding:"4px 13px 12px"}}
+                        , !ageOk && React.createElement('div', { style: {fontSize:11,color:"#e05050",marginTop:4}}, "รับประกันอายุ " , pl.minAge, "–", pl.maxAge, " ปี" )
+                        , ageOk && pl.payTerm && React.createElement('div', { style: {fontSize:11,color:"#999",marginTop:4}}, "ชำระเบี้ย " , pl.payTerm, " ปี (อายุ "   , af, "–", af+pl.payTerm-1, ")")
+                        , React.createElement('div', { style: {marginTop:4}}
+                          , React.createElement('div', { style: {fontSize:11,color:"#888",marginBottom:4}}, "ทุนประกัน (บาท)" )
+                          , React.createElement('input', { type: "text", inputMode: "numeric", value: cfg.covStr||"",
+                            onChange: function(e){
+                              var raw=e.target.value.replace(/[^0-9]/g,"");
+                              var n=raw===""?0:parseInt(raw,10);
+                              updateMain(pl.id,"covVal",n);
+                              updateMain(pl.id,"covStr",n?n.toLocaleString("th-TH"):"");
+                            },
+                            placeholder: (pl.minCov||100000).toLocaleString("th-TH"),
+                            style: {width:"100%",padding:"8px 11px",fontSize:15,fontWeight:600,color:DARK,border:"1px solid "+(cfg.covVal>=(pl.minCov||0)?"#e0e0e0":"#e05050"),borderRadius:8,outline:"none",fontFamily:"inherit"}})
+                          , cfg.covVal>0 && cfg.covVal<(pl.minCov||0) && React.createElement('div', { style: {fontSize:10,color:"#e05050",marginTop:3}}, "ขั้นต่ำ " , (pl.minCov||0).toLocaleString("th-TH"), " บาท" )
+                          , on && pl.discNote && cfg.covVal>=(pl.minCov||0) && pl.discNote(cfg.covVal) && React.createElement('div', { style: {fontSize:10,color:"#3aaca6",marginTop:3}}, "✓ " , pl.discNote(cfg.covVal))
+                        )
+                      )
+                    )
+                  )
+                );
+              })
+            )
+
+            /* เลือกสัญญาเพิ่มเติม (หลายตัว) + ใส่ทุน/หน่วย */
+            , React.createElement('div', { style: {background:"#fff",borderRadius:14,padding:16,marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,.07)"}}
+              , React.createElement('div', { style: {fontSize:12,color:"#555",fontWeight:600,marginBottom:10}}, "สัญญาเพิ่มเติม (เบี้ยตามอายุ)" )
+              , RIDER_PLANS.map(function(pl){
+                var on = !!rcSel[pl.id];
+                var cfg = rcSel[pl.id] || {};
+                var premFirst = on ? calcRiderAtAge(pl.id, cfg, rcGender, af) : null;
+                return (
+                  React.createElement('div', { key: pl.id, style: {marginBottom:10,border:"1px solid "+(on?pl.color+"55":"#eee"),borderRadius:11,overflow:"hidden"}}
+                    , React.createElement('button', { className: "btn", onClick: function(){toggleSel(pl.id);}, style: {width:"100%",display:"flex",alignItems:"center",gap:10,padding:"11px 13px",background:on?pl.color+"0c":"#fff"}}
+                      , React.createElement('div', { style: {width:20,height:20,borderRadius:6,flexShrink:0,border:"2px solid "+(on?pl.color:"#ccc"),background:on?pl.color:"#fff",display:"flex",alignItems:"center",justifyContent:"center"}}
+                        , on && React.createElement('span', { style: {color:"#fff",fontSize:13,fontWeight:700}}, "✓")
+                      )
+                      , React.createElement('span', { style: {fontSize:13,fontWeight:600,color:on?pl.color:"#555",flex:1,textAlign:"left"}}, pl.name)
+                      , on && React.createElement('span', { style: {fontSize:13,fontWeight:700,color:pl.color}}, premFirst!=null&&premFirst>0?"฿"+fmt(premFirst):"—")
+                    )
+                    , on && (
+                      React.createElement('div', { style: {padding:"4px 13px 12px"}}
+                        /* subOptions (HH / HB อาชีพ) */
+                        , pl.subOptions && (
+                          React.createElement('div', { style: {display:"flex",gap:5,flexWrap:"wrap",marginBottom:8,marginTop:4}}
+                            , pl.subOptions.map(function(opt,idx){
+                              var active=(cfg.subIdx||0)===idx;
+                              return React.createElement('button', { key: idx, className: "btn", onClick: function(){updateCfg(pl.id,"subIdx",idx);}, style: {padding:"5px 10px",borderRadius:16,fontSize:11,fontWeight:active?700:400,border:"1px solid "+(active?pl.color:"#e0e0e0"),background:active?pl.color+"15":"#fff",color:active?pl.color:"#888"}}, opt.label);
+                            })
+                          )
+                        )
+                        /* ทุนประกัน (hasCovInput) */
+                        , pl.hasCovInput && (
+                          React.createElement('div', { style: {marginTop:4}}
+                            , React.createElement('div', { style: {fontSize:11,color:"#888",marginBottom:4}}, pl.id==="hb"||pl.id==="hbextra" ? "ค่าชดเชยรายวัน (บาท)" : "ทุนประกัน (บาท)")
+                            , React.createElement('input', { type: "text", inputMode: "numeric", value: cfg.covStr||"",
+                              onChange: function(e){
+                                var raw=e.target.value.replace(/[^0-9]/g,"");
+                                var n=raw===""?0:parseInt(raw,10);
+                                updateCfg(pl.id,"covVal",n);
+                                updateCfg(pl.id,"covStr",n?n.toLocaleString("th-TH"):"");
+                              },
+                              placeholder: (pl.covDefault||1000).toLocaleString("th-TH"),
+                              style: {width:"100%",padding:"8px 11px",fontSize:15,fontWeight:600,color:DARK,border:"1px solid "+(cfg.covVal>=(pl.minCov||0)?"#e0e0e0":"#e05050"),borderRadius:8,outline:"none",fontFamily:"inherit"}})
+                            , cfg.covVal>0 && cfg.covVal<(pl.minCov||0) && React.createElement('div', { style: {fontSize:10,color:"#e05050",marginTop:3}}, "ขั้นต่ำ " , (pl.minCov||0).toLocaleString("th-TH"), " บาท" )
+                          )
+                        )
+                        /* หน่วย (AHC) */
+                        , pl.hasUnitInput && (
+                          React.createElement('div', { style: {marginTop:4}}
+                            , React.createElement('div', { style: {fontSize:11,color:"#888",marginBottom:4}}, "จำนวนหน่วย (ขั้นต่ำ "  , pl.minUnit||3, ")")
+                            , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:8}}
+                              , React.createElement('button', { className: "btn", onClick: function(){updateCfg(pl.id,"units",Math.max(pl.minUnit||3,(cfg.units||10)-1));}, style: {width:30,height:30,borderRadius:7,border:"1px solid #e0e0e0",background:GRAY,fontSize:16,color:"#555",flexShrink:0}}, "−")
+                              , React.createElement('div', { style: {flex:1,textAlign:"center",fontSize:17,fontWeight:700,color:pl.color}}, cfg.units||10)
+                              , React.createElement('button', { className: "btn", onClick: function(){updateCfg(pl.id,"units",(cfg.units||10)+1);}, style: {width:30,height:30,borderRadius:7,border:"1px solid #e0e0e0",background:GRAY,fontSize:16,color:"#555",flexShrink:0}}, "+")
+                              , React.createElement('span', { style: {fontSize:12,color:MUTED,flexShrink:0}}, "หน่วย")
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                );
+              })
+            )
+
+            /* RESULT */
+            , totalSelCount>0 ? (
+              React.createElement('div', { style: {background:"#E8175D",borderRadius:16,padding:"18px 20px",marginBottom:14,color:"#fff"}}
+                , React.createElement('div', { style: {fontSize:12,opacity:.8,marginBottom:8}}, rcGender==="m"?"ชาย":"หญิง", " · อายุ "   , af, "–", at, " ปี · "   , totalSelCount, " แผน" )
+                , React.createElement('div', { style: {fontSize:12,opacity:.85}}, "เบี้ยรวมปีแรก (อายุ "  , af, ")")
+                , React.createElement('div', { style: {fontSize:30,fontWeight:700}}, "฿", fmt(firstYearTotal), React.createElement('span', { style: {fontSize:13,opacity:.8}}, " /ปี" ))
+                , React.createElement('div', { style: {borderTop:"1px solid rgba(255,255,255,.25)",marginTop:12,paddingTop:10,display:"flex",justifyContent:"space-between"}}
+                  , React.createElement('span', { style: {fontSize:13,opacity:.85}}, "เบี้ยรวมสะสม อายุ "  , af, "–", at)
+                  , React.createElement('span', { style: {fontSize:18,fontWeight:700}}, "฿", fmt(grandSum))
+                )
+              )
+            ) : (
+              React.createElement('div', { style: {background:"#fff",borderRadius:14,padding:"20px",textAlign:"center",color:"#999",marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,.07)"}}, "เลือกอย่างน้อย 1 แผนเพื่อคำนวณเบี้ย"
+
+              )
+            )
+
+            , totalSelCount>0 && (
+              React.createElement('button', { className: "btn", onClick: function(){setRcShowTable(function(s){return !s;});}, style: {width:"100%",padding:"12px 0",borderRadius:12,background:"#fff",color:"#E8175D",fontSize:14,fontWeight:600,boxShadow:"0 1px 4px rgba(0,0,0,.07)",marginBottom:14}}
+                , rcShowTable ? "ซ่อนตารางรายปี ▲" : "ดูตารางเบี้ยรวมรายปี ▼"
+              )
+            )
+
+            , rcShowTable && totalSelCount>0 && (
+              React.createElement('div', { style: {background:"#fff",borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,.07)"}}
+                , React.createElement('div', { style: {display:"flex",background:"#E8175D",color:"#fff",padding:"10px 16px",fontSize:13,fontWeight:600}}
+                  , React.createElement('div', { style: {flex:1}}, "อายุ")
+                  , React.createElement('div', { style: {textAlign:"right"}}, "เบี้ยรวมรายปี (บาท)" )
+                )
+                , React.createElement('div', { style: {maxHeight:360,overflowY:"auto"}}
+                  , rows.map(function(rw,i){
+                    return (
+                      React.createElement('div', { key: rw.age, style: {display:"flex",padding:"9px 16px",fontSize:13,borderBottom:"1px solid #f3f3f3",background:i%2?"#fafafa":"#fff"}}
+                        , React.createElement('div', { style: {flex:1,color:"#555"}}, rw.age, " ปี" )
+                        , React.createElement('div', { style: {textAlign:"right",fontWeight:600,color:rw.prem!=null?DARK:"#ccc"}}, rw.prem!=null?fmt(rw.prem):"—")
+                      )
+                    );
+                  })
+                )
+              )
+            )
+
+            , React.createElement('div', { style: {marginTop:16,fontSize:11,color:"#bbb",textAlign:"center",lineHeight:1.6}}, "เป็นค่าประมาณการเบื้องต้น · เบี้ยเปลี่ยนตามอายุที่เพิ่มขึ้น"
+
+            )
+          )
+        );
+      })()
+
+      /* ===================== BOTTOM NAV ===================== */
+      , React.createElement('div', { style: {position:"fixed",bottom:0,left:0,right:0,background:"#fff",borderTop:"1px solid #e8e8e8",
+        display:"flex",zIndex:50,maxWidth:520,margin:"0 auto"}}
+        , [{id:"main",label:"Premium Calculator",icon:"🏠"},{id:"rider",label:"Total Premium",icon:"📋"}].map(function(t){
+          var active = page===t.id;
+          return (
+            React.createElement('button', { key: t.id, className: "btn", onClick: function(){setPage(t.id);}, style: {
+              flex:1,padding:"10px 0 12px",background:"#fff",display:"flex",flexDirection:"column",
+              alignItems:"center",gap:2,borderTop:active?"2px solid "+PINK:"2px solid transparent"}}
+              , React.createElement('span', { style: {fontSize:18,filter:active?"none":"grayscale(1) opacity(.5)"}}, t.icon)
+              , React.createElement('span', { style: {fontSize:11,fontWeight:active?700:400,color:active?PINK:"#999"}}, t.label)
+            )
+          );
+        })
       )
     )
   );
