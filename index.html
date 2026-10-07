@@ -711,9 +711,232 @@ function MoneyInput(props) {
   );
 }
 
+// ===================== FACT-FINDING PAGE =====================
+var FF_STORE = "ulife-factfinding-v1";
+var FF_GROUPS = ["inc", "fix", "var"];
+var FF_META = {
+  inc: { title: "รายรับ", tag: "Income", add: "+ เพิ่มรายรับ" },
+  fix: { title: "รายจ่ายคงที่", tag: "Fixed", add: "+ เพิ่มรายจ่ายคงที่" },
+  "var": { title: "รายจ่ายผันแปร", tag: "Variable", add: "+ เพิ่มรายจ่ายผันแปร" }
+};
+var FF_DEFAULTS = {
+  inc: [["เงินเดือน", "m"], ["โบนัส", "y"], ["รายได้อื่น", "m"]],
+  fix: [["ค่าบ้าน / ค่าเช่า", "m"], ["ค่างวดรถ", "m"], ["ค่าโทรศัพท์ / อินเทอร์เน็ต", "m"], ["ประกันชีวิต / สุขภาพเดิม", "y", 1],
+        ["ประกันรถ", "y"], ["ค่าน้ำมัน / เดินทาง", "m"], ["ให้พ่อแม่", "m"], ["หนี้บัตรเครดิต / สินเชื่อ", "m"]],
+  "var": [["ค่าอาหาร", "m"], ["ช้อปปิ้ง", "m"], ["อื่น ๆ", "m"]]
+};
+var FF_EXAMPLE = { inc: [40000, 40000, 0], fix: [0, 10000, 1000, 0, 12000, 2000, 2000, 0], "var": [5000, 3000, 0] };
+
+function ffFresh() {
+  var s = { client: "", pct: 15 };
+  for (var i = 0; i < FF_GROUPS.length; i++) {
+    var g = FF_GROUPS[i];
+    s[g] = FF_DEFAULTS[g].map(function (d) { return { name: d[0], per: d[1], ins: d[2] ? 1 : 0, amt: 0, custom: 0 }; });
+  }
+  return s;
+}
+function ffLoad() {
+  try {
+    var s = JSON.parse(localStorage.getItem(FF_STORE) || "null");
+    if (s && s.inc && s.fix && s["var"]) return s;
+  } catch (e) {}
+  return ffFresh();
+}
+function ffMonthly(it) { return it.per === "y" ? it.amt / 12 : it.amt; }
+function ffTotal(s, g) { var t = 0; for (var i = 0; i < s[g].length; i++) t += ffMonthly(s[g][i]); return t; }
+function ffNum(v) { var x = parseFloat(String(v).replace(/[^0-9.]/g, "")); return isNaN(x) || x < 0 ? 0 : x; }
+
+function FactPage(props) {
+  var st = useState(ffLoad);
+  var s = st[0], setS = st[1];
+  var tc = useState("");
+  var toastMsg = tc[0], setToast = tc[1];
+
+  useEffect(function () {
+    try { localStorage.setItem(FF_STORE, JSON.stringify(s)); } catch (e) {}
+  }, [s]);
+
+  function update(fn) {
+    setS(function (prev) { var n = JSON.parse(JSON.stringify(prev)); fn(n); return n; });
+  }
+  function setAmt(g, i, v) { update(function (n) { n[g][i].amt = ffNum(v); }); }
+  function setName(g, i, v) { update(function (n) { n[g][i].name = v; }); }
+  function setPer(g, i, p) { update(function (n) { n[g][i].per = p; }); }
+  function addRow(g) { update(function (n) { n[g].push({ name: "", per: "m", ins: 0, amt: 0, custom: 1 }); }); }
+  function delRow(g, i) { update(function (n) { n[g].splice(i, 1); }); }
+  function loadExample() {
+    var n = ffFresh();
+    n.client = "ตัวอย่าง";
+    for (var i = 0; i < FF_GROUPS.length; i++) {
+      var g = FF_GROUPS[i];
+      for (var j = 0; j < n[g].length; j++) n[g][j].amt = FF_EXAMPLE[g][j] || 0;
+    }
+    setS(n);
+  }
+
+  var inc = ffTotal(s, "inc"), fix = ffTotal(s, "fix"), vr = ffTotal(s, "var");
+  var left = inc - fix - vr, L = Math.max(left, 0);
+  var exist = 0;
+  for (var k = 0; k < s.fix.length; k++) if (s.fix[k].ins) exist += ffMonthly(s.fix[k]);
+  var pct = s.pct || 15, pick = L * pct / 100;
+  var base = Math.max(inc, fix + vr) || 1;
+  var tot = { inc: inc, fix: fix, "var": vr };
+
+  function summary() {
+    var out = ["Fact-finding · ตรวจสุขภาพการเงิน" + (s.client ? " · " + s.client : "")];
+    for (var i = 0; i < FF_GROUPS.length; i++) {
+      var g = FF_GROUPS[i];
+      out.push(FF_META[g].title + ": " + fmt(tot[g]) + " บาท/เดือน");
+      for (var j = 0; j < s[g].length; j++) {
+        var it = s[g][j];
+        if (it.amt) out.push("  • " + (it.name || "รายการ") + " " + fmt(it.amt) + (it.per === "y" ? " /ปี (" + fmt(it.amt / 12) + "/เดือน)" : " /เดือน"));
+      }
+    }
+    out.push("เงินเหลือต่อเดือน: " + fmt(left) + " บาท");
+    if (left > 0) out.push("งบประกันที่เสนอ (" + pct + "% ของเงินเหลือ): " + fmt(pick) + " บาท/เดือน · " + fmt(pick * 12) + " บาท/ปี");
+    out.push("— uLife AIA by CHIVAS AIA");
+    return out.join("\n");
+  }
+  function showToast(m) { setToast(m); setTimeout(function () { setToast(""); }, 1600); }
+  function copy() {
+    var text = summary();
+    function fb() {
+      var ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); showToast("คัดลอกแล้ว"); } catch (e) { showToast("คัดลอกไม่ได้"); }
+      document.body.removeChild(ta);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { showToast("คัดลอกแล้ว"); }, fb);
+    else fb();
+  }
+
+  var card = { background: "#fff", borderRadius: 14, padding: 16, marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,.07)" };
+  var label = { fontSize: 12, color: MUTED, fontWeight: 600, textTransform: "uppercase", letterSpacing: .8 };
+  var inputSt = { width: 118, padding: "9px 10px", fontSize: 16, fontWeight: 700, color: DARK, textAlign: "right", border: "2px solid #e0e0e0",
+    borderRadius: 10, outline: "none", background: GRAY, fontFamily: "inherit", flexShrink: 0 };
+
+  function row(g, it, i) {
+    var hint = it.per === "y" ? (it.amt ? "เฉลี่ยเดือนละ " + fmt(it.amt / 12) + " บาท" : "กรอกยอดทั้งปี") : "";
+    return React.createElement("div", { key: g + i, style: { display: "flex", alignItems: "center", gap: 8, padding: "9px 0", borderTop: "1px solid #f3f3f3" } },
+      React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+        it.custom
+          ? React.createElement("input", { type: "text", value: it.name, placeholder: "ชื่อรายการ", onChange: function (e) { setName(g, i, e.target.value); },
+              style: { width: "100%", padding: "7px 8px", fontSize: 14, border: "1px solid #e0e0e0", borderRadius: 8, outline: "none", fontFamily: "inherit" } })
+          : React.createElement("div", { style: { fontSize: 14, color: "#333" } }, it.name),
+        hint ? React.createElement("div", { style: { fontSize: 11, color: MUTED } }, hint) : null
+      ),
+      React.createElement("div", { style: { display: "flex", border: "1px solid #e0e0e0", borderRadius: 8, overflow: "hidden", flexShrink: 0 } },
+        [["m", "เดือน"], ["y", "ปี"]].map(function (p) {
+          var on = it.per === p[0];
+          return React.createElement("button", { key: p[0], className: "btn", onClick: function () { setPer(g, i, p[0]); },
+            style: { padding: "6px 8px", fontSize: 11, background: on ? PINK : "#fff", color: on ? "#fff" : "#999", fontWeight: on ? 700 : 400 } }, p[1]);
+        })
+      ),
+      React.createElement("input", { type: "text", inputMode: "numeric", placeholder: "0",
+        value: it.amt ? fmt(it.amt) : "", onChange: function (e) { setAmt(g, i, e.target.value); },
+        onFocus: function (e) { e.target.style.borderColor = PINK; }, onBlur: function (e) { e.target.style.borderColor = "#e0e0e0"; },
+        style: inputSt }),
+      it.custom ? React.createElement("button", { className: "btn", onClick: function () { delRow(g, i); }, "aria-label": "ลบรายการ",
+        style: { background: "none", color: "#bbb", fontSize: 20, padding: "0 2px", flexShrink: 0 } }, "×") : null
+    );
+  }
+
+  function group(g) {
+    var tagColor = g === "inc" ? { background: PINK + "18", color: PINK } : g === "fix" ? { background: DARK, color: "#fff" } : { background: "#eee", color: "#666" };
+    return React.createElement("div", { key: g, style: card },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
+        React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
+          React.createElement("span", { style: Object.assign({ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10 }, tagColor) }, FF_META[g].tag),
+          React.createElement("span", { style: { fontSize: 15, fontWeight: 700 } }, FF_META[g].title)
+        ),
+        React.createElement("span", { style: { fontSize: 13, color: MUTED } }, tot[g] ? fmt(tot[g]) + " / เดือน" : "")
+      ),
+      s[g].map(function (it, i) { return row(g, it, i); }),
+      React.createElement("button", { className: "btn", onClick: function () { addRow(g); },
+        style: { width: "100%", marginTop: 8, padding: "9px 0", borderRadius: 10, border: "1px dashed #e0b3c4", background: "#fff", color: PINK, fontSize: 13, fontWeight: 600 } }, FF_META[g].add)
+    );
+  }
+
+  function seg(w, color) { return React.createElement("div", { style: { width: w + "%", background: color, height: "100%", transition: "width .25s" } }); }
+  function pctOf(x) { return inc ? Math.round(x / inc * 100) : 0; }
+
+  return React.createElement("div", { style: { maxWidth: 520, margin: "0 auto", padding: "16px 14px", display: props.show ? "block" : "none" } },
+
+    /* HERO: เงินเหลือ */
+    React.createElement("div", { style: { background: left < 0 ? "#B3261E" : PINK, borderRadius: 16, padding: "18px 20px", marginBottom: 14, color: "#fff" } },
+      React.createElement("div", { style: { fontSize: 13, opacity: .85 } }, "เงินเหลือต่อเดือน" + (s.client ? " · " + s.client : "")),
+      React.createElement("div", { style: { fontSize: 40, fontWeight: 700, lineHeight: 1.15 } }, "฿" + fmt(left)),
+      React.createElement("div", { style: { fontSize: 12, opacity: .9 } },
+        inc <= 0 ? "กรอกรายรับเพื่อเริ่มคำนวณ" : left < 0 ? "รายจ่ายเกินรายรับ ควรวางแผนลดรายจ่ายก่อน" : "คิดเป็น " + pctOf(left) + "% ของรายรับ · ทั้งปี ฿" + fmt(left * 12)),
+      React.createElement("div", { style: { display: "flex", height: 10, borderRadius: 10, overflow: "hidden", background: "rgba(255,255,255,.25)", margin: "14px 0 8px" } },
+        seg(fix / base * 100, "#1a1a2e"), seg(vr / base * 100, "rgba(255,255,255,.55)"), seg(L / base * 100, "#fff")
+      ),
+      React.createElement("div", { style: { display: "flex", gap: 14, fontSize: 11, opacity: .95, flexWrap: "wrap" } },
+        React.createElement("span", null, "■ คงที่ " + pctOf(fix) + "%"),
+        React.createElement("span", null, "■ ผันแปร " + pctOf(vr) + "%"),
+        React.createElement("span", null, "□ เหลือ " + pctOf(L) + "%")
+      )
+    ),
+
+    /* ชื่อลูกค้า + ปุ่ม */
+    React.createElement("div", { style: card },
+      React.createElement("div", { style: Object.assign({ marginBottom: 10 }, label) }, "Fact-finding · ตรวจสุขภาพการเงิน"),
+      React.createElement("input", { type: "text", value: s.client, placeholder: "ชื่อลูกค้า (ไม่บังคับ)",
+        onChange: function (e) { var v = e.target.value; update(function (n) { n.client = v; }); },
+        style: { width: "100%", padding: "10px 12px", fontSize: 15, border: "2px solid #e0e0e0", borderRadius: 10, outline: "none", background: GRAY, fontFamily: "inherit", marginBottom: 10 } }),
+      React.createElement("div", { style: { display: "flex", gap: 8 } },
+        React.createElement("button", { className: "btn", onClick: loadExample, style: { flex: 1, padding: "9px 0", borderRadius: 9, border: "2px solid #e0e0e0", background: "#fff", color: "#555", fontSize: 13, fontWeight: 600 } }, "ตัวอย่าง 40,000"),
+        React.createElement("button", { className: "btn", onClick: function () { setS(ffFresh()); }, style: { flex: 1, padding: "9px 0", borderRadius: 9, border: "2px solid #e0e0e0", background: "#fff", color: "#555", fontSize: 13, fontWeight: 600 } }, "ล้างข้อมูล")
+      )
+    ),
+
+    group("inc"), group("fix"), group("var"),
+
+    /* สรุป */
+    React.createElement("div", { style: card },
+      React.createElement("div", { style: Object.assign({ marginBottom: 8 }, label) }, "สรุปต่อเดือน"),
+      [["รายรับเฉลี่ยต่อเดือน", inc, 0], ["− รายจ่ายคงที่", fix, 0], ["− รายจ่ายผันแปร", vr, 0], ["เงินเหลือ", left, 1]].map(function (r, i) {
+        return React.createElement("div", { key: i, style: { display: "flex", justifyContent: "space-between", padding: "8px 0", borderTop: i ? "1px solid #f3f3f3" : "none", fontSize: 14, fontWeight: r[2] ? 700 : 400, color: r[2] ? (left < 0 ? "#B3261E" : PINK) : "#555" } },
+          React.createElement("span", null, r[0]), React.createElement("span", null, "฿" + fmt(r[1])));
+      })
+    ),
+
+    /* งบประกัน */
+    React.createElement("div", { style: card },
+      React.createElement("div", { style: Object.assign({ marginBottom: 4 }, label) }, "งบทำประกันที่ไม่หนักเกินไป"),
+      React.createElement("div", { style: { fontSize: 12, color: "#888", marginBottom: 12 } }, "ใช้แค่ 10–20% ของเงินที่เหลือ ลูกค้าจ่ายได้สบาย ไม่กระทบชีวิตประจำวัน"),
+      React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 12 } },
+        [10, 20].map(function (p) {
+          return React.createElement("div", { key: p, style: { flex: 1, background: PINK + "0e", borderRadius: 12, padding: 12 } },
+            React.createElement("div", { style: { fontSize: 12, color: "#888" } }, p + "% ของเงินเหลือ"),
+            React.createElement("div", { style: { fontSize: 20, fontWeight: 700, color: PINK } }, "฿" + fmt(L * p / 100)),
+            React.createElement("div", { style: { fontSize: 11, color: "#999" } }, "/เดือน · ฿" + fmt(L * p / 100 * 12) + "/ปี"));
+        })
+      ),
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 13, color: "#555" } },
+        React.createElement("span", null, "เลือกสัดส่วน"), React.createElement("b", { style: { color: PINK } }, pct + "%")),
+      React.createElement("input", { type: "range", min: 5, max: 30, step: 1, value: pct, "aria-label": "สัดส่วนงบประกัน",
+        onChange: function (e) { var v = +e.target.value; update(function (n) { n.pct = v; }); },
+        style: { width: "100%", accentColor: PINK, margin: "8px 0 12px" } }),
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", border: "2px solid " + PINK, borderRadius: 12, padding: "12px 14px" } },
+        React.createElement("div", null,
+          React.createElement("div", { style: { fontSize: 12, color: "#888" } }, "งบประกันที่เสนอ"),
+          React.createElement("div", { style: { fontSize: 20, fontWeight: 700 } }, "฿" + fmt(pick) + " /เดือน")),
+        React.createElement("div", { style: { textAlign: "right" } },
+          React.createElement("div", { style: { fontSize: 12, color: "#888" } }, "เบี้ยต่อปี"),
+          React.createElement("div", { style: { fontSize: 20, fontWeight: 700, color: PINK } }, "฿" + fmt(pick * 12)))
+      ),
+      exist ? React.createElement("div", { style: { fontSize: 12, color: "#888", marginTop: 10 } }, "มีเบี้ยประกันเดิมเฉลี่ยเดือนละ ฿" + fmt(exist) + " (฿" + fmt(exist * 12) + "/ปี) หักไว้ในรายจ่ายคงที่แล้ว") : null
+    ),
+
+    React.createElement("button", { className: "btn", onClick: copy, style: { width: "100%", padding: "13px 0", borderRadius: 12, background: PINK, color: "#fff", fontSize: 15, fontWeight: 700, marginBottom: 10 } }, "คัดลอกสรุป ส่ง LINE"),
+    React.createElement("div", { style: { fontSize: 11, color: "#bbb", textAlign: "center", lineHeight: 1.6 } }, "ข้อมูลเก็บไว้ในเครื่องนี้เท่านั้น"),
+    toastMsg ? React.createElement("div", { style: { position: "fixed", left: "50%", bottom: 90, transform: "translateX(-50%)", background: DARK, color: "#fff", padding: "9px 16px", borderRadius: 20, fontSize: 13, zIndex: 60 } }, toastMsg) : null
+  );
+}
+
 // ===================== APP =====================
 function App() {
-  var [page, setPage]             = useState("main"); // "main" | "rider" | "bmi"
+  var [page, setPage]             = useState("main"); // "main" | "rider" | "bmi" | "fact"
   var [age, setAge]               = useState(30);
   var [ageStr, setAgeStr]         = useState("30");
   var [gender, setGender]         = useState("m");
@@ -1992,10 +2215,12 @@ function App() {
         );
       })()
 
+      , React.createElement(FactPage, { show: page==="fact" })
+
       /* ===================== BOTTOM NAV ===================== */
       , React.createElement('div', { style: {position:"fixed",bottom:0,left:0,right:0,background:"#fff",borderTop:"1px solid #e8e8e8",
         display:"flex",zIndex:50,maxWidth:520,margin:"0 auto",width:"100%"}}
-        , [{id:"main",label:"Premium",icon:"🏠"},{id:"rider",label:"Total Premium",icon:"📋"},{id:"bmi",label:"BMI",icon:"⚖️"}].map(function(t){
+        , [{id:"main",label:"Premium",icon:"🏠"},{id:"rider",label:"Total Premium",icon:"📋"},{id:"bmi",label:"BMI",icon:"⚖️"},{id:"fact",label:"Fact-finding",icon:"🧾"}].map(function(t){
           var active = page===t.id;
           return (
             React.createElement('button', { key: t.id, className: "btn", onClick: function(){setPage(t.id);}, style: {
