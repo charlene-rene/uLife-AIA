@@ -1231,9 +1231,9 @@ function App() {
       parts.push((HH_SHORT[r.id] || (rp ? rp.name.replace("AIA ","") : r.id)) + " " + fmt(a));
     }
     if(!hhR) return;
-    // ทุนประกันชีวิต (เสียชีวิตทุกกรณี) = ทุนแผนหลัก + Multi-Pay CI
+    // ทุนประกันชีวิต (เสียชีวิตทุกกรณี) = ทุนแผนหลัก + Multi-Pay CI + CI Plus
     var hasMain = mainPlan && mainAnnual > 0;
-    var lifeVal = (hasMain ? mainCov : 0) + (ciR ? (ciR.covVal || 0) : 0);
+    var lifeVal = (hasMain ? mainCov : 0) + (ciR ? (ciR.covVal || 0) : 0) + (ciPlusR ? (ciPlusR.covVal || 0) : 0);
     var life = lifeVal > 0 ? { label:"ทุนประกันชีวิต (เสียชีวิตทุกกรณี)", val:lifeVal } : null;
     var box1 = null;
     if(ciR) box1 = { label:"โรคร้ายแรง (Multi-Pay CI)", val:ciR.covVal || 0, unit:"บาท" };
